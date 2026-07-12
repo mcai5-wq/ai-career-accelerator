@@ -1,0 +1,15 @@
+# Env files
+.env
+.env.local
+apps/**/.env
+
+# Python
+apps/ai-service/venv/
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+.turbo/
+dist/
+.next/

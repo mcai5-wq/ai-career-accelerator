@@ -1,0 +1,283 @@
+
+// schema.prisma
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum AuthProvider {
+  GOOGLE
+  CREDENTIALS
+}
+
+enum PlanTier {
+  FREE
+  SUPPORTER
+}
+
+model User {
+  id            String        @id @default(cuid())
+  email         String        @unique
+  passwordHash  String?       // null if OAuth-only
+  name          String?
+  avatarUrl     String?
+  provider      AuthProvider  @default(CREDENTIALS)
+  planTier      PlanTier      @default(FREE)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  resumes                Resume[]
+  interviewSessions      InterviewSession[]
+  donations              Donation[]
+  jobDescriptions        JobDescription[]
+  technicalPrepSessions  TechnicalPrepSession[]
+
+  @@map("users")
+}
+
+model Resume {
+  id            String   @id @default(cuid())
+  userId        String
+  title         String
+  rawText       String   @db.Text
+  fileUrl       String?          // if original file stored (e.g. S3/Cloudinary)
+  parsedData    Json?            // structured extraction (sections, bullets)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  analyses   ResumeAnalysis[]
+
+  @@index([userId])
+  @@map("resumes")
+}
+
+model JobDescription {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  company     String?
+  rawText     String   @db.Text
+  createdAt   DateTime @default(now())
+
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  analyses  ResumeAnalysis[]
+
+  @@index([userId])
+  @@map("job_descriptions")
+}
+
+enum AnalysisStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model ResumeAnalysis {
+  id                String         @id @default(cuid())
+  resumeId          String
+  jobDescriptionId  String?
+  status            AnalysisStatus @default(PENDING)
+  atsScore          Int?
+  matchedKeywords   String[]
+  missingKeywords   String[]
+  suggestions       Json?           // structured feedback per section
+  rawModelOutput    Json?           // stored for auditability/debugging
+  errorMessage      String?
+  createdAt         DateTime @default(now())
+  completedAt       DateTime?
+
+  resume          Resume          @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  jobDescription  JobDescription? @relation(fields: [jobDescriptionId], references: [id], onDelete: SetNull)
+
+  @@index([resumeId])
+  @@map("resume_analyses")
+}
+
+enum InterviewStatus {
+  IN_PROGRESS
+  COMPLETED
+  ABANDONED
+}
+
+enum InterviewDifficulty {
+  JUNIOR
+  MID
+  SENIOR
+}
+
+model InterviewSession {
+  id           String              @id @default(cuid())
+  userId       String
+  role         String              // e.g. "Backend Engineer"
+  difficulty   InterviewDifficulty
+  status       InterviewStatus     @default(IN_PROGRESS)
+  overallScore Int?
+  summary      Json?               // final AI-generated report
+  createdAt    DateTime @default(now())
+  completedAt  DateTime?
+
+  user       User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questions  InterviewQuestion[]
+
+  @@index([userId])
+  @@map("interview_sessions")
+}
+
+model InterviewQuestion {
+  id          String   @id @default(cuid())
+  sessionId   String
+  orderIndex  Int
+  prompt      String   @db.Text
+  category    String?  // e.g. "system-design", "behavioral", "coding"
+  createdAt   DateTime @default(now())
+
+  session  InterviewSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  answer   InterviewAnswer?
+
+  @@index([sessionId])
+  @@map("interview_questions")
+}
+
+model InterviewAnswer {
+  id                String   @id @default(cuid())
+  questionId        String   @unique
+  answerText        String   @db.Text
+  score             Int?
+  feedback          Json?
+  strengths         String[]
+  improvementAreas  String[]
+  createdAt         DateTime @default(now())
+
+  question  InterviewQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@map("interview_answers")
+}
+
+enum DonationStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+model Donation {
+  id                 String         @id @default(cuid())
+  userId             String?        // nullable: anonymous donations allowed
+  stripeSessionId    String         @unique
+  stripePaymentId    String?
+  amountCents        Int
+  currency            String        @default("usd")
+  status             DonationStatus @default(PENDING)
+  createdAt          DateTime @default(now())
+
+  user  User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("donations")
+}
+
+
+model Company {
+  id                      String    @id @default(cuid())
+  name                    String    @unique
+  slug                    String    @unique
+  isUserSubmitted         Boolean   @default(false)   // true if created ad-hoc by a user typing an unknown company
+  topicBreakdown          Json?     // cached canonical AI output: [{ topic, weight, rationale }]
+  topicBreakdownUpdatedAt DateTime?
+  createdAt               DateTime  @default(now())
+
+  prepSessions     TechnicalPrepSession[]
+  problemMappings  CompanyProblemMapping[]
+
+  @@map("companies")
+}
+
+enum ProblemDifficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+model PracticeProblem {
+  id           String            @id @default(cuid())
+  title        String
+  slug         String            @unique
+  difficulty   ProblemDifficulty
+  topics       String[]          // e.g. ["dynamic-programming", "graphs"]
+  externalUrl  String            // link out (e.g. LeetCode problem page) — content never stored/reproduced
+  source       String            @default("leetcode")
+  createdAt    DateTime @default(now())
+
+  companyMappings  CompanyProblemMapping[]
+  progressEntries  TechnicalPrepProblemProgress[]
+
+  @@index([topics])
+  @@map("practice_problems")
+}
+
+// Curated (human-reviewed), not scraped: a lightweight editorial mapping of which
+// problems best represent a company's known topic emphasis.
+model CompanyProblemMapping {
+  id         String  @id @default(cuid())
+  companyId  String
+  problemId  String
+  weight     Int     @default(1)
+  rationale  String?
+
+  company  Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  problem  PracticeProblem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, problemId])
+  @@map("company_problem_mappings")
+}
+
+enum PrepSessionStatus {
+  PENDING     // topic breakdown being generated (cache miss)
+  READY
+  FAILED
+}
+
+model TechnicalPrepSession {
+  id              String            @id @default(cuid())
+  userId          String
+  companyId       String?
+  companyNameRaw  String?           // free-text fallback if company isn't in the catalog yet
+  targetRole      String?
+  status          PrepSessionStatus @default(PENDING)
+  topicBreakdown  Json?             // snapshot copied from Company at creation time (stays stable even if the canonical one is later regenerated)
+  createdAt       DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company   Company?  @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  problems  TechnicalPrepProblemProgress[]
+
+  @@index([userId])
+  @@map("technical_prep_sessions")
+}
+
+enum ProblemProgressStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  SOLVED
+  SKIPPED
+}
+
+model TechnicalPrepProblemProgress {
+  id         String                @id @default(cuid())
+  sessionId  String
+  problemId  String
+  status     ProblemProgressStatus @default(NOT_STARTED)
+  updatedAt  DateTime @updatedAt
+
+  session  TechnicalPrepSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  problem  PracticeProblem       @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, problemId])
+  @@map("technical_prep_problem_progress")
+}

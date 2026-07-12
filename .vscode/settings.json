@@ -1,0 +1,11 @@
+{
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.python"
+  },
+  "eslint.workingDirectories": ["apps/web", "apps/api"],
+  "prisma.showPrismaDataPlatformNotification": false,
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "prisma.pinToPrisma6": false
+}

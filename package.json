@@ -1,0 +1,19 @@
+{
+  "name": "ai-career-accelerator",
+  "private": true,
+  "packageManager": "npm@10.9.2",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+  "dev": "turbo run dev",
+  "db:up": "docker compose -f infra/docker-compose.yml up -d",
+  "db:down": "docker compose -f infra/docker-compose.yml down",
+  "db:migrate": "cd apps/api && npx prisma migrate dev",
+  "db:studio": "cd apps/api && npx prisma studio"
+},
+  "devDependencies": {
+    "turbo": "^2.10.4"
+  }
+}
