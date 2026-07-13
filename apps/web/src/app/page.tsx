@@ -16,7 +16,11 @@ export default async function Home() {
         Get instant resume feedback, practice interviews, and
         company-specific technical prep — all in one place.
       </p>
-      <Button size="lg" render={<Link href="/login">Get started</Link>} />
+      <Button
+        size="lg"
+        nativeButton={false}
+        render={<Link href="/login">Get started</Link>}
+      />
     </main>
   );
 }
