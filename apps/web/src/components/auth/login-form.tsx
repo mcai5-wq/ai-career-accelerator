@@ -14,6 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { GoogleIcon } from "@/components/icons/google-icon";
 
 export function LoginForm() {
   const router = useRouter();
@@ -97,6 +98,7 @@ export function LoginForm() {
           variant="outline"
           onClick={() => signIn("google", { callbackUrl })}
         >
+          <GoogleIcon className="size-4" />
           Continue with Google
         </Button>
       </CardContent>
