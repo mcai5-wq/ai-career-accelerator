@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -40,10 +41,12 @@ export function UserMenu({ user }: UserMenuProps) {
         </Avatar>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuLabel className="font-normal">
-          <p className="text-sm font-medium">{user?.name ?? "Signed in"}</p>
-          <p className="text-xs text-muted-foreground">{user?.email}</p>
-        </DropdownMenuLabel>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="font-normal">
+            <p className="text-sm font-medium">{user?.name ?? "Signed in"}</p>
+            <p className="text-xs text-muted-foreground">{user?.email}</p>
+          </DropdownMenuLabel>
+        </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/" })}>
           Sign out

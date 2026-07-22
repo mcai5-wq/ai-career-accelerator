@@ -11,8 +11,10 @@ import { AuthService } from './auth.service';
 import { CurrentUser } from './decorators/current-user.decorator';
 import type { RequestUser } from './decorators/current-user.decorator';
 import { LoginDto } from './dto/login.dto';
+import { OAuthExchangeDto } from './dto/oauth-exchange.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { RegisterDto } from './dto/register.dto';
+import { InternalApiKeyGuard } from './guards/internal-api-key.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @Controller('auth')
@@ -38,10 +40,33 @@ export class AuthController {
     return this.authService.refresh(dto.refreshToken);
   }
 
+  // Called only by the Next.js server (lib/auth.ts's jwt callback) after it
+  // has already verified the user's identity with Google — never called
+  // directly by a browser, hence the internal-key guard instead of a JWT one.
+  @UseGuards(InternalApiKeyGuard)
+  @HttpCode(HttpStatus.OK)
+  @Post('oauth/google')
+  oauthGoogle(@Body() dto: OAuthExchangeDto) {
+    return this.authService.loginWithOAuth(dto);
+  }
+
   // Proves the guard/strategy actually work: no valid Bearer token -> 401.
   @UseGuards(JwtAuthGuard)
   @Get('me')
   me(@CurrentUser() user: RequestUser) {
     return user;
+  }
+
+  // Revokes the access token used to call this route *and* the refresh
+  // token in the body, via the Redis blocklist — actual server-side
+  // invalidation, not just "the frontend forgot its cookie."
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Post('logout')
+  async logout(@CurrentUser() user: RequestUser, @Body() dto: RefreshDto) {
+    await this.authService.logout(
+      { jti: user.jti, exp: user.exp },
+      dto.refreshToken,
+    );
   }
 }

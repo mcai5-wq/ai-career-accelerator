@@ -1,4 +1,4 @@
-import { env } from "@/lib/env";
+import { publicEnv } from "@/lib/env.public";
 
 export class ApiError extends Error {
   status: number;
@@ -25,7 +25,7 @@ async function apiFetch<T>(
   path: string,
   { token, body, headers, ...init }: ApiFetchOptions = {}
 ): Promise<T> {
-  const res = await fetch(`${env.NEXT_PUBLIC_API_URL}${path}`, {
+  const res = await fetch(`${publicEnv.NEXT_PUBLIC_API_URL}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
