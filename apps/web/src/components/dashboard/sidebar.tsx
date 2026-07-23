@@ -22,7 +22,11 @@ export function DashboardSidebar() {
       </div>
       <nav className="flex flex-col gap-1">
         {navItems.map(({ href, label, icon: Icon }) => {
-          const isActive = pathname === href;
+          // Exact match for the root Overview link, but prefix match for
+          // the others so e.g. /dashboard/interviews/[id] still highlights
+          // "Interview Prep" instead of nothing.
+          const isActive =
+            href === "/dashboard" ? pathname === href : pathname.startsWith(href);
           return (
             <Link
               key={href}
