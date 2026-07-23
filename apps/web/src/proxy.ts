@@ -6,7 +6,7 @@ import { auth } from "@/lib/auth";
 // it must not be the only authorization boundary. Real checks happen in the
 // (dashboard) layout and in each request to the NestJS API.
 const protectedPrefixes = ["/dashboard"];
-const authOnlyRoutes = ["/login"];
+const authOnlyRoutes = ["/login", "/register"];
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;

@@ -17,4 +17,12 @@ export const envValidationSchema = Joi.object({
   // Shared secret for server-to-server calls (e.g. the frontend's OAuth
   // token exchange) — never sent to a browser, so it isn't a NEXT_PUBLIC_ var.
   INTERNAL_API_KEY: Joi.string().min(10).required(),
+  // All optional: MailService falls back to logging the login code to the
+  // console instead of sending real email when these aren't set (see
+  // mail/mail.service.ts) — local dev works end-to-end without an SMTP account.
+  SMTP_HOST: Joi.string().optional(),
+  SMTP_PORT: Joi.number().optional(),
+  SMTP_USER: Joi.string().optional(),
+  SMTP_PASS: Joi.string().optional(),
+  MAIL_FROM: Joi.string().optional(),
 });

@@ -45,18 +45,32 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   session: { strategy: "jwt" },
   providers: [
     Credentials({
+      // `code` isn't a real form field (the app has its own login/register
+      // UI) — this object is just type/label metadata; authorize() below
+      // is what actually matters.
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
+        code: { label: "Code", type: "text" },
       },
+      // Always the *second* step of the two-step (password + emailed code)
+      // flow — for both login AND registration, since a password only
+      // proves the user chose one, not that they control this email
+      // address. Step one (POST /auth/login or POST /auth/register)
+      // happens as a plain API call before this, outside Auth.js, to check
+      // credentials / create the account and trigger the email — see
+      // login-form.tsx and register-form.tsx.
+      // Google sign-in is a completely separate provider, untouched by any
+      // of this.
       async authorize(credentials) {
         try {
-          const res = await fetch(`${env.NEXT_PUBLIC_API_URL}/auth/login`, {
+          const res = await fetch(`${env.NEXT_PUBLIC_API_URL}/auth/login/verify`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               email: credentials.email,
               password: credentials.password,
+              code: credentials.code,
             }),
           });
 

@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 import {
   ConflictException,
   Injectable,
@@ -7,14 +7,18 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService, type JwtSignOptions } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
+import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { LoginDto } from './dto/login.dto';
 import { OAuthExchangeDto } from './dto/oauth-exchange.dto';
 import { RegisterDto } from './dto/register.dto';
+import { VerifyLoginCodeDto } from './dto/verify-login-code.dto';
 import { JwtPayload } from './types/jwt-payload.interface';
 
 const SALT_ROUNDS = 12;
+const OTP_TTL_SECONDS = 10 * 60;
+const OTP_MAX_ATTEMPTS = 5;
 
 interface AuthUser {
   id: string;
@@ -29,8 +33,14 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly redisService: RedisService,
+    private readonly mailService: MailService,
   ) {}
 
+  // Creates the account, then sends a verification code the same as
+  // login() below — a password only proves the user chose one, not that
+  // they actually control this email address. verifyLoginCode is what
+  // actually completes both registration and login; there's no separate
+  // "instant" registration path anymore.
   async register(dto: RegisterDto) {
     const existing = await this.prisma.user.findUnique({
       where: { email: dto.email },
@@ -49,13 +59,62 @@ export class AuthService {
       },
     });
 
+    await this.sendVerificationCode(user.email);
+    return { requiresVerification: true, email: user.email };
+  }
+
+  // Step 1 of credentials login: verify the password, then email a code
+  // instead of returning tokens directly. Step 2 is verifyLoginCode below.
+  async login(dto: LoginDto) {
+    const user = await this.verifyPassword(dto.email, dto.password);
+    await this.sendVerificationCode(user.email);
+    return { requiresVerification: true, email: user.email };
+  }
+
+  private async sendVerificationCode(email: string) {
+    const code = randomInt(100000, 1000000).toString();
+    await this.redisService.setOtp(
+      email,
+      { code, attempts: 0 },
+      OTP_TTL_SECONDS,
+    );
+    await this.mailService.sendLoginCode(email, code);
+  }
+
+  // Step 2: re-checks the password (not just the code) so a leaked/guessed
+  // code alone can't complete a login — real 2FA, not "code instead of
+  // password."
+  async verifyLoginCode(dto: VerifyLoginCodeDto) {
+    const user = await this.verifyPassword(dto.email, dto.password);
+
+    const record = await this.redisService.getOtp(user.email);
+    if (!record) {
+      throw new UnauthorizedException(
+        'Code expired or not requested. Please log in again.',
+      );
+    }
+
+    if (record.attempts >= OTP_MAX_ATTEMPTS) {
+      await this.redisService.deleteOtp(user.email);
+      throw new UnauthorizedException(
+        'Too many incorrect attempts. Please log in again.',
+      );
+    }
+
+    if (record.code !== dto.code) {
+      await this.redisService.updateOtpAttempts(user.email, {
+        code: record.code,
+        attempts: record.attempts + 1,
+      });
+      throw new UnauthorizedException('Incorrect code.');
+    }
+
+    await this.redisService.deleteOtp(user.email);
     return this.buildAuthResponse(user);
   }
 
-  async login(dto: LoginDto) {
-    const user = await this.prisma.user.findUnique({
-      where: { email: dto.email },
-    });
+  private async verifyPassword(email: string, password: string) {
+    const user = await this.prisma.user.findUnique({ where: { email } });
 
     // Same error whether the email doesn't exist or the password is wrong —
     // don't give attackers a way to enumerate registered emails.
@@ -63,15 +122,12 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password.');
     }
 
-    const passwordMatches = await bcrypt.compare(
-      dto.password,
-      user.passwordHash,
-    );
+    const passwordMatches = await bcrypt.compare(password, user.passwordHash);
     if (!passwordMatches) {
       throw new UnauthorizedException('Invalid email or password.');
     }
 
-    return this.buildAuthResponse(user);
+    return user;
   }
 
   async loginWithOAuth(dto: OAuthExchangeDto) {
@@ -148,6 +204,25 @@ export class AuthService {
     } catch {
       // Already invalid/expired — nothing left to revoke, not an error.
     }
+  }
+
+  // Deletes the account outright — Prisma's onDelete: Cascade on Resume,
+  // InterviewSession, TechnicalPrepSession, etc. (schema.prisma) means this
+  // one query removes all of the user's data, not just the row itself.
+  // Doesn't need the refresh token: once the user row is gone, refresh()
+  // already rejects it via its own "User no longer exists" check, so
+  // there's nothing extra to revoke there — only the *current* access
+  // token needs explicit revocation to stop working immediately.
+  async deleteAccount(
+    userId: string,
+    accessToken: { jti: string; exp?: number },
+  ) {
+    if (accessToken.exp) {
+      const now = Math.floor(Date.now() / 1000);
+      await this.redisService.revoke(accessToken.jti, accessToken.exp - now);
+    }
+
+    await this.prisma.user.delete({ where: { id: userId } });
   }
 
   private async buildAuthResponse(user: AuthUser) {

@@ -2,13 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { apiClient, ApiError } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import {
   Card,
   CardContent,
@@ -16,41 +15,44 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { GoogleIcon } from "@/components/icons/google-icon";
 
-type Step = "credentials" | "code";
+type Step = "details" | "code";
 
-export function LoginForm() {
+export function RegisterForm() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
 
-  const [step, setStep] = useState<Step>("credentials");
+  const [step, setStep] = useState<Step>("details");
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Step 1: a plain API call (not signIn) — just checks the password and,
-  // if correct, has the backend email a code. No session exists yet.
-  async function handleCredentialsSubmit(event: React.FormEvent) {
+  // Step 1: a plain API call (not signIn) — creates the account and has
+  // the backend email a code. A password only proves the user chose one;
+  // this is what proves they actually control the email address.
+  async function handleDetailsSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
     setIsSubmitting(true);
 
     try {
-      await apiClient.post("/auth/login", { email, password });
+      await apiClient.post("/auth/register", { name, email, password });
       setStep("code");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Invalid email or password.");
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "Couldn't create that account."
+      );
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  // Step 2: signIn() re-checks the password *and* the code together — this
-  // is what actually creates the session.
+  // Step 2: the exact same verification signIn() uses for logging in —
+  // re-checks the password and the emailed code together.
   async function handleCodeSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
@@ -70,31 +72,41 @@ export function LoginForm() {
       return;
     }
 
-    router.push(callbackUrl);
+    router.push("/dashboard");
     router.refresh();
   }
 
   return (
     <Card className="w-full max-w-sm">
       <CardHeader>
-        <CardTitle>Sign in</CardTitle>
+        <CardTitle>Create an account</CardTitle>
         <CardDescription>
-          {step === "credentials"
-            ? "Access your resume reviews and interview prep."
+          {step === "details"
+            ? "Start getting AI feedback on your resume and interviews."
             : `Enter the code we sent to ${email}.`}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        {step === "credentials" ? (
+        {step === "details" ? (
           <>
             <form
-              onSubmit={handleCredentialsSubmit}
+              onSubmit={handleDetailsSubmit}
               className="flex flex-col gap-4"
             >
               <div className="flex flex-col gap-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="register-name">Name</Label>
                 <Input
-                  id="email"
+                  id="register-name"
+                  autoComplete="name"
+                  required
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="register-email">Email</Label>
+                <Input
+                  id="register-email"
                   type="email"
                   autoComplete="email"
                   required
@@ -103,54 +115,39 @@ export function LoginForm() {
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="register-password">Password</Label>
                 <Input
-                  id="password"
+                  id="register-password"
                   type="password"
-                  autoComplete="current-password"
+                  autoComplete="new-password"
                   required
+                  minLength={8}
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                 />
               </div>
               {error && <p className="text-sm text-destructive">{error}</p>}
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Checking…" : "Continue"}
+                {isSubmitting ? "Creating account…" : "Create account"}
               </Button>
             </form>
 
-            <div className="relative flex items-center justify-center py-1">
-              <Separator className="absolute inset-x-0" />
-              <span className="relative z-10 bg-card px-2 text-xs text-muted-foreground">
-                or
-              </span>
-            </div>
-
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => signIn("google", { callbackUrl })}
-            >
-              <GoogleIcon className="size-4" />
-              Continue with Google
-            </Button>
-
             <p className="text-center text-sm text-muted-foreground">
-              Don&apos;t have an account?{" "}
+              Already have an account?{" "}
               <Link
-                href="/register"
+                href="/login"
                 className="font-medium text-foreground hover:underline"
               >
-                Create one
+                Sign in
               </Link>
             </p>
           </>
         ) : (
           <form onSubmit={handleCodeSubmit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="code">Verification code</Label>
+              <Label htmlFor="register-code">Verification code</Label>
               <Input
-                id="code"
+                id="register-code"
                 inputMode="numeric"
                 autoComplete="one-time-code"
                 maxLength={6}
@@ -161,13 +158,13 @@ export function LoginForm() {
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Verifying…" : "Verify & sign in"}
+              {isSubmitting ? "Verifying…" : "Verify & create account"}
             </Button>
             <Button
               type="button"
               variant="ghost"
               onClick={() => {
-                setStep("credentials");
+                setStep("details");
                 setCode("");
                 setError(null);
               }}

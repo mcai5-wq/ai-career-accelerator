@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -14,6 +15,7 @@ import { LoginDto } from './dto/login.dto';
 import { OAuthExchangeDto } from './dto/oauth-exchange.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { RegisterDto } from './dto/register.dto';
+import { VerifyLoginCodeDto } from './dto/verify-login-code.dto';
 import { InternalApiKeyGuard } from './guards/internal-api-key.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
@@ -26,12 +28,20 @@ export class AuthController {
     return this.authService.register(dto);
   }
 
-  // Nest defaults POST to 201 Created; login isn't creating a resource, so
-  // report 200 like the frontend (lib/auth.ts) already expects.
+  // Step 1 of credentials login: verifies the password and emails a code.
+  // Returns { requiresVerification: true } — NOT tokens. See login/verify.
   @HttpCode(HttpStatus.OK)
   @Post('login')
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
+  }
+
+  // Step 2: re-checks the password and the emailed code together; only
+  // this route actually returns tokens.
+  @HttpCode(HttpStatus.OK)
+  @Post('login/verify')
+  verifyLoginCode(@Body() dto: VerifyLoginCodeDto) {
+    return this.authService.verifyLoginCode(dto);
   }
 
   @HttpCode(HttpStatus.OK)
@@ -68,5 +78,17 @@ export class AuthController {
       { jti: user.jti, exp: user.exp },
       dto.refreshToken,
     );
+  }
+
+  // Permanently deletes the account and (via Prisma's onDelete: Cascade)
+  // everything tied to it — resumes, interview sessions, prep progress.
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Delete('me')
+  async deleteAccount(@CurrentUser() user: RequestUser) {
+    await this.authService.deleteAccount(user.id, {
+      jti: user.jti,
+      exp: user.exp,
+    });
   }
 }
