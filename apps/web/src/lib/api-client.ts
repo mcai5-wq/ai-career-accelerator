@@ -25,14 +25,23 @@ async function apiFetch<T>(
   path: string,
   { token, body, headers, ...init }: ApiFetchOptions = {}
 ): Promise<T> {
+  // FormData (file uploads) must NOT be JSON-stringified, and must NOT get
+  // an explicit Content-Type — the browser sets its own, with the
+  // multipart boundary the server needs to parse it.
+  const isFormData = body instanceof FormData;
+
   const res = await fetch(`${publicEnv.NEXT_PUBLIC_API_URL}${path}`, {
     ...init,
     headers: {
-      "Content-Type": "application/json",
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...headers,
     },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    body: isFormData
+      ? body
+      : body !== undefined
+        ? JSON.stringify(body)
+        : undefined,
   });
 
   if (!res.ok) {

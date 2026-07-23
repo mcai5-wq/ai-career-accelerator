@@ -1,7 +1,17 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { PDFParse } from 'pdf-parse';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateResumeDto } from './dto/create-resume.dto';
+
+// The first bytes of every valid PDF file ("magic bytes") — checked in
+// addition to the browser-supplied mimetype, which is just a client claim
+// and easy to spoof by renaming a file.
+const PDF_MAGIC_BYTES = '%PDF-';
 
 @Injectable()
 export class ResumesService {
@@ -30,6 +40,42 @@ export class ResumesService {
       },
       select: this.summarySelect,
     });
+  }
+
+  async createFromPdf(
+    userId: string,
+    title: string,
+    file?: Express.Multer.File,
+  ) {
+    if (!file) {
+      throw new BadRequestException('A PDF file is required.');
+    }
+
+    const looksLikePdf =
+      file.mimetype === 'application/pdf' &&
+      file.buffer.subarray(0, 5).toString('latin1') === PDF_MAGIC_BYTES;
+
+    if (!looksLikePdf) {
+      throw new BadRequestException('Only PDF files are supported.');
+    }
+
+    const parser = new PDFParse({ data: file.buffer });
+    let rawText: string;
+    try {
+      const result = await parser.getText();
+      rawText = result.text.trim();
+    } finally {
+      // Frees the parser's internal buffers regardless of success/failure.
+      await parser.destroy();
+    }
+
+    if (!rawText) {
+      throw new BadRequestException(
+        "Couldn't read any text from that PDF — it may be a scanned image without a text layer.",
+      );
+    }
+
+    return this.create(userId, { title, rawText });
   }
 
   findAllForUser(userId: string) {

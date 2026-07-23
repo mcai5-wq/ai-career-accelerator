@@ -1,11 +1,21 @@
 "use client";
 
+import { Trash2 } from "lucide-react";
+import { useDeleteResume } from "@/lib/hooks/use-delete-resume";
 import { useResumes } from "@/lib/hooks/use-resumes";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 export function ResumeList() {
   const { data: resumes, isPending, isError } = useResumes();
+  const deleteResume = useDeleteResume();
 
   if (isPending) {
     return <p className="text-sm text-muted-foreground">Loading resumes…</p>;
@@ -30,18 +40,40 @@ export function ResumeList() {
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {resumes.map((resume) => (
-        <Card key={resume.id}>
-          <CardHeader>
-            <CardTitle className="text-base">{resume.title}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Badge variant="secondary">
-              {resume.analyses.length} {resume.analyses.length === 1 ? "analysis" : "analyses"}
-            </Badge>
-          </CardContent>
-        </Card>
-      ))}
+      {resumes.map((resume) => {
+        const isDeletingThis =
+          deleteResume.isPending && deleteResume.variables === resume.id;
+
+        return (
+          <Card key={resume.id}>
+            <CardHeader>
+              <CardTitle className="text-base">{resume.title}</CardTitle>
+              <CardAction>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`Delete ${resume.title}`}
+                  disabled={isDeletingThis}
+                  onClick={() => {
+                    if (window.confirm(`Delete "${resume.title}"?`)) {
+                      deleteResume.mutate(resume.id);
+                    }
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </CardAction>
+            </CardHeader>
+            <CardContent>
+              <Badge variant="secondary">
+                {resume.analyses.length}{" "}
+                {resume.analyses.length === 1 ? "analysis" : "analyses"}
+              </Badge>
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 }
