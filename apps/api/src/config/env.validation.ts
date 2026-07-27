@@ -15,8 +15,13 @@ export const envValidationSchema = Joi.object({
   JWT_ACCESS_EXPIRES_IN: Joi.string().default('15m'),
   JWT_REFRESH_EXPIRES_IN: Joi.string().default('7d'),
   // Shared secret for server-to-server calls (e.g. the frontend's OAuth
-  // token exchange) — never sent to a browser, so it isn't a NEXT_PUBLIC_ var.
+  // token exchange, and calls to the Python ai-service below) — never sent
+  // to a browser, so it isn't a NEXT_PUBLIC_ var.
   INTERNAL_API_KEY: Joi.string().min(10).required(),
+  // Optional: AiClientService falls back to the static question bank / to
+  // leaving answers ungraded when this is unset or the service is
+  // unreachable — see ai/ai-client.service.ts.
+  AI_SERVICE_URL: Joi.string().uri().optional(),
   // All optional: MailService falls back to logging the login code to the
   // console instead of sending real email when these aren't set (see
   // mail/mail.service.ts) — local dev works end-to-end without an SMTP account.

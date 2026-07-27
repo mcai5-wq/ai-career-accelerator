@@ -9,6 +9,41 @@ interface OAuthExchangeResult {
   refreshToken: string;
 }
 
+// Reads the `exp` claim straight out of the JWT payload — no signature
+// verification needed here, this is only used to schedule when the jwt
+// callback below should refresh, not as a security check (JwtAuthGuard on
+// the API does the real verification on every request). Uses atob rather
+// than Buffer so this also works if this file is ever bundled for the Edge
+// runtime (proxy.ts imports `auth` from here).
+function decodeJwtExpiryMs(jwt: string): number | undefined {
+  try {
+    const payload = jwt.split(".")[1];
+    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const decoded = JSON.parse(atob(base64)) as { exp?: number };
+    return typeof decoded.exp === "number" ? decoded.exp * 1000 : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+// Trades a still-valid refresh token for a new access token via the
+// existing POST /auth/refresh endpoint.
+async function refreshAccessToken(refreshToken: string): Promise<string | null> {
+  try {
+    const res = await fetch(`${env.NEXT_PUBLIC_API_URL}/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    if (!res.ok) return null;
+    const data = (await res.json()) as { accessToken: string };
+    return data.accessToken;
+  } catch {
+    return null;
+  }
+}
+
 // Trades a Google profile (already verified by Google/Auth.js) for a
 // NestJS-issued access/refresh token pair, finding-or-creating the matching
 // database user along the way. Authenticated with a shared secret rather
@@ -104,7 +139,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   callbacks: {
     // Runs when JWT is created/updated — embed the NestJS tokens into it.
     // `user`/`account`/`profile` are only populated once, right after a
-    // fresh sign-in; every later call just re-verifies the existing token.
+    // fresh sign-in; every later call re-verifies (and, once the access
+    // token is close to expiring, refreshes) the existing token. Without
+    // this, every request more than JWT_ACCESS_EXPIRES_IN (15m) after login
+    // would 401 — there'd be nothing to auto-renew the accessToken.
     async jwt({ token, user, account, profile }) {
       if (account?.provider === "credentials" && user) {
         token.accessToken = user.accessToken;
@@ -112,6 +150,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         // `user.id` is optional on next-auth's base type; ours (via
         // types/next-auth.d.ts) always sets it in `authorize()`.
         token.id = user.id as string;
+        token.accessTokenExpires = decodeJwtExpiryMs(user.accessToken as string);
+        delete token.error;
         return token;
       }
 
@@ -132,18 +172,47 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           // Overwrite Google's own `sub` with our database user id, so
           // this token lines up with `userId` foreign keys in our schema.
           token.id = backendAuth.user.id;
+          token.accessTokenExpires = decodeJwtExpiryMs(backendAuth.accessToken);
+          delete token.error;
         }
         // If the exchange failed (backend down, misconfigured key), the
         // user still gets a session — API calls just won't be authenticated
         // until they retry. Fails open on login, closed on data access.
+        return token;
       }
 
+      // Not a fresh sign-in — reuse the existing access token as long as
+      // it's not close to expiring (refresh 60s early to absorb clock
+      // skew/request latency).
+      const stillValid =
+        typeof token.accessTokenExpires === "number" &&
+        Date.now() < token.accessTokenExpires - 60_000;
+
+      const refreshToken = token.refreshToken;
+      if (stillValid || !refreshToken) {
+        return token;
+      }
+
+      const refreshedAccessToken = await refreshAccessToken(refreshToken);
+      if (!refreshedAccessToken) {
+        // The refresh token itself is expired/revoked — nothing left to do
+        // but flag it. components/providers.tsx signs the user out when it
+        // sees this instead of leaving them stuck with a session that
+        // 401s on every request.
+        token.error = "RefreshTokenError";
+        return token;
+      }
+
+      token.accessToken = refreshedAccessToken;
+      token.accessTokenExpires = decodeJwtExpiryMs(refreshedAccessToken);
+      delete token.error;
       return token;
     },
     // Runs when session is accessed — expose accessToken to the app
     async session({ session, token }) {
       session.accessToken = token.accessToken;
       session.user.id = token.id;
+      session.error = token.error;
       return session;
     },
   },

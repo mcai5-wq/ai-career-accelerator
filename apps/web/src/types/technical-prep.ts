@@ -1,11 +1,14 @@
 // Frontend-facing subset of the NestJS `TechnicalPrepSession`/
 // `PracticeProblem`/`TechnicalPrepProblemProgress` models (see
-// apps/api/prisma/schema.prisma). Endpoints this expects (not built yet —
-// that's tomorrow's backend work):
+// apps/api/prisma/schema.prisma). Backed by apps/api/src/technical-prep:
 //   GET   /technical-prep
 //   POST  /technical-prep                              { companyNameRaw, targetRole }
 //   GET   /technical-prep/:id
 //   PATCH /technical-prep/:id/problems/:problemId       { status }
+// Companies are created ad hoc from whatever the user types (no curated
+// catalog/matching yet) and `topicBreakdown` is a static default cached per
+// company, not real AI generation — practice problems come from a small
+// fixed catalog (practice-problem-catalog.ts), auto-seeded on first use.
 export type PrepSessionStatus = "PENDING" | "READY" | "FAILED";
 export type ProblemDifficulty = "EASY" | "MEDIUM" | "HARD";
 export type ProblemProgressStatus =
