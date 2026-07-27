@@ -25,6 +25,15 @@ export class MailService {
             port: this.configService.get<number>('SMTP_PORT') ?? 587,
             secure: this.configService.get<number>('SMTP_PORT') === 465,
             auth: { user, pass },
+            // nodemailer's defaults are way too generous for a request a
+            // user is actively waiting on (connectionTimeout defaults to
+            // 2min, socketTimeout to 10min) — a slow/stalled SMTP server
+            // would leave the register/login request hanging that whole
+            // time with no error, which is exactly what happened here.
+            // Fail fast instead so the frontend gets a clear error quickly.
+            connectionTimeout: 10_000,
+            greetingTimeout: 10_000,
+            socketTimeout: 15_000,
           })
         : null;
   }

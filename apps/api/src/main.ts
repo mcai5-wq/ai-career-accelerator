@@ -4,7 +4,11 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // rawBody: true preserves the unparsed request body (as req.rawBody)
+  // alongside the normal parsed one — needed for Stripe webhook signature
+  // verification in donations/donations.controller.ts, which must hash the
+  // exact bytes Stripe sent, not a re-serialized JSON.parse'd copy.
+  const app = await NestFactory.create(AppModule, { rawBody: true });
   const configService = app.get(ConfigService);
 
   // The frontend (localhost:3000) and API (localhost:3001) are different

@@ -19,10 +19,12 @@ interface GradedAnswer {
   summary: string;
 }
 
-// Thin HTTP client for the Python ai-service (apps/ai-service). Every
-// method here returns `null` instead of throwing whenever generation/
-// grading isn't available — missing AI_SERVICE_URL, the service being
-// down, or no real OPENAI_API_KEY configured on that side all look the
+// Thin HTTP client for the Python ai-service (apps/ai-service), which by
+// default calls Groq's free, OpenAI-compatible endpoint (see
+// ai-service/app/core/config.py) — swapping providers only touches that
+// file. Every method here returns `null` instead of throwing whenever
+// generation/grading isn't available — missing AI_SERVICE_URL, the service
+// being down, or no real AI_API_KEY configured on that side all look the
 // same to callers: "AI isn't available right now, fall back to the static
 // bank / leave this answer ungraded." Callers (InterviewsService) never
 // need to know which of those it was.

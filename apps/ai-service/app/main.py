@@ -11,4 +11,4 @@ app.include_router(interviews.router)
 def health() -> dict[str, bool]:
     from app.core.config import settings
 
-    return {"ok": True, "openaiConfigured": settings.openai_configured}
+    return {"ok": True, "aiConfigured": settings.ai_configured}

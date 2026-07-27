@@ -1,0 +1,122 @@
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import Stripe from 'stripe';
+import { PrismaService } from '../prisma/prisma.service';
+import { CreateCheckoutSessionDto } from './dto/create-checkout-session.dto';
+
+@Injectable()
+export class DonationsService {
+  private readonly logger = new Logger(DonationsService.name);
+  private readonly stripe: Stripe | null;
+  private readonly webhookSecret?: string;
+
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly prisma: PrismaService,
+  ) {
+    const secretKey = this.configService.get<string>('STRIPE_SECRET_KEY');
+    this.stripe = secretKey ? new Stripe(secretKey) : null;
+    this.webhookSecret = this.configService.get<string>('STRIPE_WEBHOOK_SECRET');
+  }
+
+  // Donations are anonymous by design (Donation.userId is nullable in the
+  // schema for exactly this) — this endpoint sits outside JwtAuthGuard
+  // entirely, so there's no logged-in user to attach even if one exists.
+  async createCheckoutSession(dto: CreateCheckoutSessionDto) {
+    if (!this.stripe) {
+      throw new ServiceUnavailableException(
+        "Donations aren't configured yet — set STRIPE_SECRET_KEY to enable them.",
+      );
+    }
+
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL');
+
+    const session = await this.stripe.checkout.sessions.create({
+      mode: 'payment',
+      line_items: [
+        {
+          price_data: {
+            currency: 'usd',
+            product_data: { name: 'Donation to AI Career Accelerator' },
+            unit_amount: dto.amountCents,
+          },
+          quantity: 1,
+        },
+      ],
+      success_url: `${frontendUrl}/donate/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${frontendUrl}/donate/cancel`,
+    });
+
+    if (!session.url) {
+      throw new ServiceUnavailableException('Stripe did not return a checkout URL.');
+    }
+
+    // Recorded PENDING now, before the user even reaches Stripe's page —
+    // handleWebhookEvent below is what actually confirms payment. If they
+    // abandon checkout, this row simply stays PENDING (or the
+    // checkout.session.expired handler flips it to FAILED).
+    await this.prisma.donation.create({
+      data: {
+        stripeSessionId: session.id,
+        amountCents: dto.amountCents,
+        status: 'PENDING',
+      },
+    });
+
+    return { url: session.url };
+  }
+
+  // Called by donations.controller.ts with the exact raw request bytes —
+  // Stripe's signature is computed over those bytes specifically, so this
+  // must never receive a re-serialized/re-parsed copy of the body.
+  async handleWebhookEvent(rawBody: Buffer, signature: string) {
+    if (!this.stripe || !this.webhookSecret) {
+      throw new ServiceUnavailableException('Stripe webhook is not configured.');
+    }
+
+    let event: Stripe.Event;
+    try {
+      event = this.stripe.webhooks.constructEvent(rawBody, signature, this.webhookSecret);
+    } catch (error) {
+      this.logger.warn(
+        `Rejected webhook with invalid signature: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      throw new BadRequestException('Invalid webhook signature.');
+    }
+
+    switch (event.type) {
+      case 'checkout.session.completed': {
+        const session = event.data.object as Stripe.Checkout.Session;
+        const paymentIntentId =
+          typeof session.payment_intent === 'string'
+            ? session.payment_intent
+            : (session.payment_intent?.id ?? null);
+
+        // updateMany (not update) so a webhook for a session we don't
+        // recognize — e.g. a Stripe CLI test event — is a no-op instead of
+        // a 500 from a failed findUnique.
+        await this.prisma.donation.updateMany({
+          where: { stripeSessionId: session.id },
+          data: { status: 'SUCCEEDED', stripePaymentId: paymentIntentId },
+        });
+        break;
+      }
+      case 'checkout.session.expired': {
+        const session = event.data.object as Stripe.Checkout.Session;
+        await this.prisma.donation.updateMany({
+          where: { stripeSessionId: session.id },
+          data: { status: 'FAILED' },
+        });
+        break;
+      }
+      default:
+        // Not a donation-relevant event — ignore.
+        break;
+    }
+  }
+}

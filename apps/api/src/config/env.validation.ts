@@ -30,4 +30,10 @@ export const envValidationSchema = Joi.object({
   SMTP_USER: Joi.string().optional(),
   SMTP_PASS: Joi.string().optional(),
   MAIL_FROM: Joi.string().optional(),
+  // Both optional: DonationsService returns a clean 503 from the checkout
+  // endpoint instead of crashing when these aren't set — see
+  // donations/donations.service.ts. Allow empty string ("" in .env) as well
+  // as fully unset, since that's how this repo's .env marks "not configured".
+  STRIPE_SECRET_KEY: Joi.string().allow('').optional(),
+  STRIPE_WEBHOOK_SECRET: Joi.string().allow('').optional(),
 });

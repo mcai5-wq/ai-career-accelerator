@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { FileText, LayoutDashboard, MessagesSquare, Target } from "lucide-react";
+// `Heart` was only used by the commented-out donations link below.
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -16,7 +17,7 @@ export function DashboardSidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden w-56 shrink-0 border-r border-sidebar-border bg-sidebar p-4 sm:block">
+    <aside className="hidden w-56 shrink-0 flex-col border-r border-sidebar-border bg-sidebar p-4 sm:flex">
       <div className="mb-6 px-2 text-lg font-semibold text-sidebar-foreground">
         Career Accelerator
       </div>
@@ -44,6 +45,19 @@ export function DashboardSidebar() {
           );
         })}
       </nav>
+      {/* Donations feature is built (see /donate, apps/api/src/donations)
+          but disabled until real Stripe keys are configured — see
+          apps/api/src/app.module.ts.
+      <div className="mt-auto pt-4">
+        <Link
+          href="/donate"
+          className="flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+        >
+          <Heart className="h-4 w-4" />
+          Support this project
+        </Link>
+      </div>
+      */}
     </aside>
   );
 }

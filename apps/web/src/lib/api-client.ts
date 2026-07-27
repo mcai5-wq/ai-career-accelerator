@@ -18,6 +18,12 @@ interface ApiFetchOptions extends Omit<RequestInit, "body"> {
   body?: unknown;
 }
 
+// A backend hang (e.g. a stalled SMTP call — see mail.service.ts) would
+// otherwise leave callers' `isPending` state stuck forever with no error,
+// which reads to the user as a dead "Loading…" button. Every request gets
+// a hard ceiling unless the caller passes its own `signal`.
+const DEFAULT_TIMEOUT_MS = 20_000;
+
 // Isomorphic fetch wrapper for the NestJS API. Deliberately has no knowledge
 // of NextAuth/sessions — callers resolve the token (via `auth()` on the
 // server, or `useSession()` on the client) and pass it in explicitly.
@@ -30,19 +36,28 @@ async function apiFetch<T>(
   // multipart boundary the server needs to parse it.
   const isFormData = body instanceof FormData;
 
-  const res = await fetch(`${publicEnv.NEXT_PUBLIC_API_URL}${path}`, {
-    ...init,
-    headers: {
-      ...(isFormData ? {} : { "Content-Type": "application/json" }),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...headers,
-    },
-    body: isFormData
-      ? body
-      : body !== undefined
-        ? JSON.stringify(body)
-        : undefined,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${publicEnv.NEXT_PUBLIC_API_URL}${path}`, {
+      ...init,
+      signal: init.signal ?? AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
+      headers: {
+        ...(isFormData ? {} : { "Content-Type": "application/json" }),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...headers,
+      },
+      body: isFormData
+        ? body
+        : body !== undefined
+          ? JSON.stringify(body)
+          : undefined,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "TimeoutError") {
+      throw new ApiError(0, "That took too long. Please try again.");
+    }
+    throw error;
+  }
 
   if (!res.ok) {
     const errorBody = await res.json().catch(() => undefined);

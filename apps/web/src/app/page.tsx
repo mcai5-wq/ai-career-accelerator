@@ -21,6 +21,16 @@ export default async function Home() {
         nativeButton={false}
         render={<Link href="/login">Get started</Link>}
       />
+      {/* Donations feature is built (see /donate, apps/api/src/donations)
+          but disabled until real Stripe keys are configured — see
+          apps/api/src/app.module.ts.
+      <Link
+        href="/donate"
+        className="text-sm text-muted-foreground hover:underline"
+      >
+        Support this project
+      </Link>
+      */}
     </main>
   );
 }

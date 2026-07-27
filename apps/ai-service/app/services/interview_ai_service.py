@@ -4,7 +4,7 @@ import logging
 import openai
 
 from app.core.config import settings
-from app.core.openai_client import get_openai_client
+from app.core.openai_client import get_ai_client
 from app.prompts.interviews import (
     GENERATE_QUESTIONS_SYSTEM_PROMPT,
     GRADE_ANSWER_SYSTEM_PROMPT,
@@ -22,16 +22,16 @@ logger = logging.getLogger(__name__)
 
 
 class AiNotConfiguredError(Exception):
-    """Raised when no real OPENAI_API_KEY is set — callers should turn this into a 503."""
+    """Raised when no real AI_API_KEY is set — callers should turn this into a 503."""
 
 
 class AiServiceError(Exception):
-    """Raised when OpenAI is configured but the call itself failed."""
+    """Raised when the AI provider is configured but the call itself failed."""
 
 
 def _require_configured() -> None:
-    if not settings.openai_configured:
-        raise AiNotConfiguredError("OPENAI_API_KEY is not configured.")
+    if not settings.ai_configured:
+        raise AiNotConfiguredError("AI_API_KEY is not configured.")
 
 
 def generate_questions(request: GenerateQuestionsRequest) -> GenerateQuestionsResponse:
@@ -45,8 +45,8 @@ def generate_questions(request: GenerateQuestionsRequest) -> GenerateQuestionsRe
     )
 
     try:
-        completion = get_openai_client().chat.completions.create(
-            model=settings.openai_model,
+        completion = get_ai_client().chat.completions.create(
+            model=settings.ai_model,
             response_format={"type": "json_object"},
             messages=[
                 {"role": "system", "content": GENERATE_QUESTIONS_SYSTEM_PROMPT},
@@ -57,7 +57,7 @@ def generate_questions(request: GenerateQuestionsRequest) -> GenerateQuestionsRe
         parsed = json.loads(raw_content)
         return GenerateQuestionsResponse.model_validate(parsed)
     except openai.OpenAIError as error:
-        logger.error("OpenAI call failed during question generation: %s", error)
+        logger.error("AI call failed during question generation: %s", error)
         raise AiServiceError(str(error)) from error
     except (json.JSONDecodeError, ValueError) as error:
         logger.error("Malformed model output during question generation: %s", error)
@@ -74,8 +74,8 @@ def grade_answer(request: GradeAnswerRequest) -> GradeAnswerResponse:
     )
 
     try:
-        completion = get_openai_client().chat.completions.create(
-            model=settings.openai_model,
+        completion = get_ai_client().chat.completions.create(
+            model=settings.ai_model,
             response_format={"type": "json_object"},
             messages=[
                 {"role": "system", "content": GRADE_ANSWER_SYSTEM_PROMPT},
@@ -86,7 +86,7 @@ def grade_answer(request: GradeAnswerRequest) -> GradeAnswerResponse:
         parsed = json.loads(raw_content)
         return GradeAnswerResponse.model_validate(parsed)
     except openai.OpenAIError as error:
-        logger.error("OpenAI call failed during answer grading: %s", error)
+        logger.error("AI call failed during answer grading: %s", error)
         raise AiServiceError(str(error)) from error
     except (json.JSONDecodeError, ValueError) as error:
         logger.error("Malformed model output during answer grading: %s", error)
