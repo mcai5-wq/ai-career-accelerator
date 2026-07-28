@@ -6,9 +6,13 @@
 //   GET   /technical-prep/:id
 //   PATCH /technical-prep/:id/problems/:problemId       { status }
 // Companies are created ad hoc from whatever the user types (no curated
-// catalog/matching yet) and `topicBreakdown` is a static default cached per
-// company, not real AI generation — practice problems come from a small
-// fixed catalog (practice-problem-catalog.ts), auto-seeded on first use.
+// catalog/matching yet). `topicBreakdown` is generated fresh per company +
+// role by the ai-service (falls back to a per-company cache, then a static
+// default, if AI is unavailable — see TechnicalPrepService.generateTopicBreakdown).
+// Practice problems come from a small fixed catalog
+// (practice-problem-catalog.ts) — real, verified problems/URLs are never
+// AI-invented — but which ones get selected is weighted by the generated
+// breakdown (see TechnicalPrepService.selectProblemsForBreakdown).
 export type PrepSessionStatus = "PENDING" | "READY" | "FAILED";
 export type ProblemDifficulty = "EASY" | "MEDIUM" | "HARD";
 export type ProblemProgressStatus =

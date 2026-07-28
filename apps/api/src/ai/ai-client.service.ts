@@ -32,6 +32,12 @@ interface ResumeAnalysisResult {
   summary: string;
 }
 
+interface TopicWeight {
+  topic: string;
+  weight: number;
+  rationale: string;
+}
+
 // Thin HTTP client for the Python ai-service (apps/ai-service), which by
 // default calls Groq's free, OpenAI-compatible endpoint (see
 // ai-service/app/core/config.py) — swapping providers only touches that
@@ -197,6 +203,49 @@ export class AiClientService {
     } catch (error) {
       this.logger.warn(
         `ai-service unreachable for resume analysis. ${error instanceof Error ? error.message : ''}`,
+      );
+      return null;
+    }
+  }
+
+  // Weights a fixed, caller-supplied topic vocabulary for a company+role —
+  // deliberately doesn't let the AI invent new topic names, since the
+  // result has to map back to real catalog problems (see
+  // TechnicalPrepService.selectProblemsForBreakdown). `null` means the
+  // caller should fall back to a cached/default breakdown, same as
+  // analyzeResume's "no fake data" rule — a topic emphasis is a judgment
+  // call, not something a static bank can approximate either.
+  async analyzeTechnicalPrepTopics(input: {
+    company: string;
+    targetRole: string;
+    availableTopics: string[];
+  }): Promise<TopicWeight[] | null> {
+    if (!this.baseUrl) return null;
+
+    try {
+      const res = await fetch(`${this.baseUrl}/technical-prep/analyze-topics`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-internal-api-key': this.internalApiKey ?? '',
+        },
+        body: JSON.stringify({
+          company: input.company,
+          target_role: input.targetRole,
+          available_topics: input.availableTopics,
+        }),
+      });
+
+      if (!res.ok) {
+        this.logger.warn(`Topic analysis unavailable (${res.status}).`);
+        return null;
+      }
+
+      const data = (await res.json()) as { topic_breakdown: TopicWeight[] };
+      return data.topic_breakdown;
+    } catch (error) {
+      this.logger.warn(
+        `ai-service unreachable for topic analysis. ${error instanceof Error ? error.message : ''}`,
       );
       return null;
     }

@@ -13,12 +13,10 @@ export function slugify(value: string): string {
   return slug || `company-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-// No AI service is wired up yet, so every company gets the same
-// well-known-generic breakdown instead of a per-company generated one —
-// same "static bank now, real generation later" tradeoff as the interview
-// question bank. Cached on Company.topicBreakdown so it's only computed
-// (trivially) once per company, matching the schema's cache-then-snapshot
-// design even though the "generation" step is currently static.
+// Fallback only — used when the ai-service is unavailable/unconfigured and
+// there's no previously-cached breakdown for this company either (see
+// TechnicalPrepService.generateTopicBreakdown). The real path asks the
+// ai-service to weight actual topics for the specific company + role.
 export const DEFAULT_TOPIC_BREAKDOWN = [
   {
     topic: 'Arrays & Strings',
@@ -147,3 +145,34 @@ export const PRACTICE_PROBLEM_CATALOG: Array<{
     externalUrl: 'https://leetcode.com/problems/median-of-two-sorted-arrays/',
   },
 ];
+
+// Every distinct tag actually used in the catalog above — this is the exact
+// vocabulary the ai-service is told to weight topics from (plus "System
+// Design"/"Behavioral", which don't map to catalog problems but are still
+// useful for the displayed breakdown). Constraining the AI to this fixed
+// list, rather than letting it invent free-form topic names, is what makes
+// matching an AI-weighted topic back to catalog problems reliable — see
+// TechnicalPrepService.selectProblemsForBreakdown.
+export const CATALOG_TOPIC_TAGS = Array.from(
+  new Set(PRACTICE_PROBLEM_CATALOG.flatMap((problem) => problem.topics)),
+).sort();
+
+// Cosmetic only — lets the topic breakdown display as "Dynamic Programming"
+// instead of the raw "dynamic-programming" tag, without needing a separate
+// "pretty name" field the AI would have to keep in sync.
+export const TOPIC_TAG_DISPLAY_NAMES: Record<string, string> = {
+  arrays: 'Arrays',
+  'hash-map': 'Hash Maps',
+  stack: 'Stacks',
+  'linked-list': 'Linked Lists',
+  'dynamic-programming': 'Dynamic Programming',
+  strings: 'Strings',
+  'sliding-window': 'Sliding Window',
+  graphs: 'Graphs',
+  'dfs-bfs': 'Graph Traversal (DFS/BFS)',
+  'topological-sort': 'Topological Sort',
+  sorting: 'Sorting',
+  design: 'Data Structure Design',
+  'two-pointers': 'Two Pointers',
+  'binary-search': 'Binary Search',
+};

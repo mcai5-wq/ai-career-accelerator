@@ -1,11 +1,12 @@
 from fastapi import FastAPI
 
-from app.routers import interviews, resumes
+from app.routers import interviews, resumes, technical_prep
 
 app = FastAPI(title="AI Career Accelerator — AI Service")
 
 app.include_router(interviews.router)
 app.include_router(resumes.router)
+app.include_router(technical_prep.router)
 
 
 @app.get("/health")
