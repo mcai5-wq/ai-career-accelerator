@@ -7,7 +7,8 @@ export default function ResumesPage() {
       <div>
         <h1 className="text-2xl font-semibold">Resumes</h1>
         <p className="text-sm text-muted-foreground">
-          Upload a PDF resume to get AI feedback and ATS scoring.
+          Upload a PDF resume, then open it to scan against a role for AI
+          feedback and ATS scoring.
         </p>
       </div>
       <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">

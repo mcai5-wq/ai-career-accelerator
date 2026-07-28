@@ -39,13 +39,33 @@ export class MailService {
   }
 
   async sendLoginCode(to: string, code: string): Promise<void> {
+    await this.sendCode(to, code, {
+      logLabel: 'login code',
+      subject: 'Your sign-in code',
+      bodyLabel: 'sign-in code',
+    });
+  }
+
+  async sendPasswordResetCode(to: string, code: string): Promise<void> {
+    await this.sendCode(to, code, {
+      logLabel: 'password reset code',
+      subject: 'Your password reset code',
+      bodyLabel: 'password reset code',
+    });
+  }
+
+  private async sendCode(
+    to: string,
+    code: string,
+    options: { logLabel: string; subject: string; bodyLabel: string },
+  ): Promise<void> {
     if (!this.transporter) {
-      // No SMTP configured — log instead of failing, so the whole 2FA flow
-      // is still fully usable (and testable) in local dev without real
-      // email credentials. See apps/api/.env for how to configure a real
-      // provider.
+      // No SMTP configured — log instead of failing, so the whole 2FA/
+      // password-reset flow is still fully usable (and testable) in local
+      // dev without real email credentials. See apps/api/.env for how to
+      // configure a real provider.
       this.logger.warn(
-        `[dev] SMTP not configured — login code for ${to}: ${code}`,
+        `[dev] SMTP not configured — ${options.logLabel} for ${to}: ${code}`,
       );
       return;
     }
@@ -58,9 +78,9 @@ export class MailService {
       await this.transporter.sendMail({
         from,
         to,
-        subject: 'Your sign-in code',
-        text: `Your sign-in code is ${code}. It expires in 10 minutes.`,
-        html: `<p>Your sign-in code is <strong>${code}</strong>. It expires in 10 minutes.</p>`,
+        subject: options.subject,
+        text: `Your ${options.bodyLabel} is ${code}. It expires in 10 minutes.`,
+        html: `<p>Your ${options.bodyLabel} is <strong>${code}</strong>. It expires in 10 minutes.</p>`,
       });
     } catch (error) {
       // Surface a clear, expected error instead of letting nodemailer's
@@ -68,7 +88,7 @@ export class MailService {
       // condition (provider rejected the recipient, network hiccup, etc.),
       // not a bug, so the caller should get something actionable.
       this.logger.error(
-        `Failed to send login code to ${to}`,
+        `Failed to send ${options.logLabel} to ${to}`,
         error instanceof Error ? error.stack : String(error),
       );
       throw new ServiceUnavailableException(

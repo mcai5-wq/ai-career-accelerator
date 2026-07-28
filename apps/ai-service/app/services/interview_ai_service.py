@@ -17,25 +17,13 @@ from app.schemas.interviews import (
     GradeAnswerRequest,
     GradeAnswerResponse,
 )
+from app.services.ai_common import AiServiceError, require_ai_configured
 
 logger = logging.getLogger(__name__)
 
 
-class AiNotConfiguredError(Exception):
-    """Raised when no real AI_API_KEY is set — callers should turn this into a 503."""
-
-
-class AiServiceError(Exception):
-    """Raised when the AI provider is configured but the call itself failed."""
-
-
-def _require_configured() -> None:
-    if not settings.ai_configured:
-        raise AiNotConfiguredError("AI_API_KEY is not configured.")
-
-
 def generate_questions(request: GenerateQuestionsRequest) -> GenerateQuestionsResponse:
-    _require_configured()
+    require_ai_configured()
 
     user_prompt = build_generate_questions_user_prompt(
         role=request.role,
@@ -65,7 +53,7 @@ def generate_questions(request: GenerateQuestionsRequest) -> GenerateQuestionsRe
 
 
 def grade_answer(request: GradeAnswerRequest) -> GradeAnswerResponse:
-    _require_configured()
+    require_ai_configured()
 
     user_prompt = build_grade_answer_user_prompt(
         prompt=request.prompt,

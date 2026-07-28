@@ -7,12 +7,8 @@ from app.schemas.interviews import (
     GradeAnswerRequest,
     GradeAnswerResponse,
 )
-from app.services.interview_ai_service import (
-    AiNotConfiguredError,
-    AiServiceError,
-    generate_questions,
-    grade_answer,
-)
+from app.services.ai_common import AiNotConfiguredError, AiServiceError
+from app.services.interview_ai_service import generate_questions, grade_answer
 
 router = APIRouter(prefix="/interviews", tags=["interviews"], dependencies=[Depends(require_internal_api_key)])
 

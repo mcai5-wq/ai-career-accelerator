@@ -19,6 +19,19 @@ interface GradedAnswer {
   summary: string;
 }
 
+interface ResumeSuggestion {
+  section: string;
+  suggestion: string;
+}
+
+interface ResumeAnalysisResult {
+  atsScore: number;
+  matchedKeywords: string[];
+  missingKeywords: string[];
+  suggestions: ResumeSuggestion[];
+  summary: string;
+}
+
 // Thin HTTP client for the Python ai-service (apps/ai-service), which by
 // default calls Groq's free, OpenAI-compatible endpoint (see
 // ai-service/app/core/config.py) — swapping providers only touches that
@@ -126,6 +139,62 @@ export class AiClientService {
     } catch (error) {
       this.logger.warn(
         `ai-service unreachable — leaving this answer as feedback-pending. ${error instanceof Error ? error.message : ''}`,
+      );
+      return null;
+    }
+  }
+
+  // Unlike questions/grading, there's no static fallback for a resume ATS
+  // score — it's inherently a judgment call, not something a bank of
+  // canned content can approximate. `null` here means the caller should
+  // record the analysis as FAILED with a clear reason, not silently
+  // succeed with fake data.
+  async analyzeResume(input: {
+    resumeText: string;
+    jobTitle: string;
+    company?: string;
+    jobDescriptionText?: string;
+  }): Promise<ResumeAnalysisResult | null> {
+    if (!this.baseUrl) return null;
+
+    try {
+      const res = await fetch(`${this.baseUrl}/resumes/analyze`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-internal-api-key': this.internalApiKey ?? '',
+        },
+        body: JSON.stringify({
+          resume_text: input.resumeText,
+          job_title: input.jobTitle,
+          company: input.company,
+          job_description_text: input.jobDescriptionText,
+        }),
+      });
+
+      if (!res.ok) {
+        this.logger.warn(`Resume analysis unavailable (${res.status}).`);
+        return null;
+      }
+
+      const data = (await res.json()) as {
+        ats_score: number;
+        matched_keywords: string[];
+        missing_keywords: string[];
+        suggestions: ResumeSuggestion[];
+        summary: string;
+      };
+
+      return {
+        atsScore: data.ats_score,
+        matchedKeywords: data.matched_keywords,
+        missingKeywords: data.missing_keywords,
+        suggestions: data.suggestions,
+        summary: data.summary,
+      };
+    } catch (error) {
+      this.logger.warn(
+        `ai-service unreachable for resume analysis. ${error instanceof Error ? error.message : ''}`,
       );
       return null;
     }

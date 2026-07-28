@@ -10,15 +10,23 @@ import * as bcrypt from 'bcryptjs';
 import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { OAuthExchangeDto } from './dto/oauth-exchange.dto';
 import { RegisterDto } from './dto/register.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { VerifyForgotPasswordCodeDto } from './dto/verify-forgot-password-code.dto';
 import { VerifyLoginCodeDto } from './dto/verify-login-code.dto';
 import { JwtPayload } from './types/jwt-payload.interface';
 
 const SALT_ROUNDS = 12;
 const OTP_TTL_SECONDS = 10 * 60;
 const OTP_MAX_ATTEMPTS = 5;
+const PASSWORD_RESET_TOKEN_EXPIRES_IN = '15m';
+// Separate Redis OTP namespace from the login/register flow (both keyed by
+// email) so a pending "forgot password" code can't collide with, or be
+// overwritten by, a pending login code for the same address.
+const PASSWORD_RESET_OTP_PREFIX = 'password-reset:';
 
 interface AuthUser {
   id: string;
@@ -111,6 +119,114 @@ export class AuthService {
 
     await this.redisService.deleteOtp(user.email);
     return this.buildAuthResponse(user);
+  }
+
+  // Step 1: emails a code if (and only if) the address belongs to an
+  // account with a password — but always returns the same generic response
+  // either way, so this endpoint can't be used to enumerate registered
+  // emails or distinguish password-only vs. Google-only accounts.
+  async forgotPassword(dto: ForgotPasswordDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+
+    if (user?.passwordHash) {
+      const code = randomInt(100000, 1000000).toString();
+      await this.redisService.setOtp(
+        `${PASSWORD_RESET_OTP_PREFIX}${dto.email}`,
+        { code, attempts: 0 },
+        OTP_TTL_SECONDS,
+      );
+      await this.mailService.sendPasswordResetCode(dto.email, code);
+    }
+
+    return { requiresVerification: true, email: dto.email };
+  }
+
+  // Step 2: checks the emailed code, then issues a short-lived, single-use
+  // token authorizing (only) the actual password change in step 3 — the
+  // frontend never has to hold onto the code itself past this point.
+  async verifyForgotPasswordCode(dto: VerifyForgotPasswordCodeDto) {
+    const otpKey = `${PASSWORD_RESET_OTP_PREFIX}${dto.email}`;
+    const record = await this.redisService.getOtp(otpKey);
+
+    if (!record) {
+      throw new UnauthorizedException(
+        'Code expired or not requested. Please start over.',
+      );
+    }
+
+    if (record.attempts >= OTP_MAX_ATTEMPTS) {
+      await this.redisService.deleteOtp(otpKey);
+      throw new UnauthorizedException(
+        'Too many incorrect attempts. Please start over.',
+      );
+    }
+
+    if (record.code !== dto.code) {
+      await this.redisService.updateOtpAttempts(otpKey, {
+        code: record.code,
+        attempts: record.attempts + 1,
+      });
+      throw new UnauthorizedException('Incorrect code.');
+    }
+
+    await this.redisService.deleteOtp(otpKey);
+
+    // Re-fetch rather than trust the request — the account could have been
+    // deleted in the (short) window since the code was requested.
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+    if (!user) {
+      throw new UnauthorizedException('Account no longer exists.');
+    }
+
+    const resetToken = await this.signToken(
+      user.id,
+      user.email,
+      'password_reset',
+    );
+    return { resetToken };
+  }
+
+  // Step 3: the only step that actually touches passwordHash. Doesn't
+  // re-verify the code — the resetToken from step 2 already proves that —
+  // but does burn the token immediately after use (via the same Redis
+  // revocation blocklist logout uses) so it can't be replayed even though
+  // it's still within its ~15min expiry.
+  async resetPassword(dto: ResetPasswordDto) {
+    let payload: JwtPayload;
+    try {
+      payload = await this.jwtService.verifyAsync<JwtPayload>(
+        dto.resetToken,
+      );
+    } catch {
+      throw new UnauthorizedException(
+        'Invalid or expired reset link. Please start over.',
+      );
+    }
+
+    if (payload.type !== 'password_reset') {
+      throw new UnauthorizedException('Invalid token type.');
+    }
+
+    if (await this.redisService.isRevoked(payload.jti)) {
+      throw new UnauthorizedException(
+        'This reset link has already been used.',
+      );
+    }
+
+    const passwordHash = await bcrypt.hash(dto.newPassword, SALT_ROUNDS);
+    await this.prisma.user.update({
+      where: { id: payload.sub },
+      data: { passwordHash },
+    });
+
+    if (payload.exp) {
+      const now = Math.floor(Date.now() / 1000);
+      await this.redisService.revoke(payload.jti, payload.exp - now);
+    }
   }
 
   private async verifyPassword(email: string, password: string) {
@@ -240,6 +356,13 @@ export class AuthService {
 
   private signToken(userId: string, email: string, type: JwtPayload['type']) {
     const payload: JwtPayload = { sub: userId, email, type, jti: randomUUID() };
+
+    if (type === 'password_reset') {
+      return this.jwtService.signAsync(payload, {
+        expiresIn: PASSWORD_RESET_TOKEN_EXPIRES_IN,
+      });
+    }
+
     // configService.get<string>(...) returns a plain `string`, but
     // JwtSignOptions wants the stricter `ms`-style literal type — the value
     // itself ("15m", "7d") is valid, so we assert rather than widen the type.

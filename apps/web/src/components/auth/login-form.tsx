@@ -117,6 +117,12 @@ export function LoginForm() {
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting ? "Checking…" : "Continue"}
               </Button>
+              <Link
+                href="/forgot-password"
+                className="text-center text-sm text-muted-foreground hover:underline"
+              >
+                Forgot your password?
+              </Link>
             </form>
 
             <div className="relative flex items-center justify-center py-1">

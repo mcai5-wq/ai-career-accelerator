@@ -15,6 +15,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { AnalyzeResumeDto } from './dto/analyze-resume.dto';
 import { CreateResumeDto } from './dto/create-resume.dto';
 import { UploadResumeDto } from './dto/upload-resume.dto';
 import { ResumesService } from './resumes.service';
@@ -56,6 +57,15 @@ export class ResumesController {
   @Get(':id')
   findOne(@CurrentUser() user: RequestUser, @Param('id') id: string) {
     return this.resumesService.findOne(user.id, id);
+  }
+
+  @Post(':id/analyze')
+  analyze(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Body() dto: AnalyzeResumeDto,
+  ) {
+    return this.resumesService.analyze(user.id, id, dto);
   }
 
   @Delete(':id')

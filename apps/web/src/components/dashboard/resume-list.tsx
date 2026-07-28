@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Trash2 } from "lucide-react";
 import { useDeleteResume } from "@/lib/hooks/use-delete-resume";
 import { useResumes } from "@/lib/hooks/use-resumes";
@@ -47,7 +48,14 @@ export function ResumeList() {
         return (
           <Card key={resume.id}>
             <CardHeader>
-              <CardTitle className="text-base">{resume.title}</CardTitle>
+              <CardTitle className="text-base">
+                <Link
+                  href={`/dashboard/resumes/${resume.id}`}
+                  className="hover:underline"
+                >
+                  {resume.title}
+                </Link>
+              </CardTitle>
               <CardAction>
                 <Button
                   type="button"
@@ -66,10 +74,12 @@ export function ResumeList() {
               </CardAction>
             </CardHeader>
             <CardContent>
-              <Badge variant="secondary">
-                {resume.analyses.length}{" "}
-                {resume.analyses.length === 1 ? "analysis" : "analyses"}
-              </Badge>
+              <Link href={`/dashboard/resumes/${resume.id}`}>
+                <Badge variant="secondary">
+                  {resume.analyses.length}{" "}
+                  {resume.analyses.length === 1 ? "analysis" : "analyses"}
+                </Badge>
+              </Link>
             </CardContent>
           </Card>
         );
