@@ -15,7 +15,13 @@ def test_health_reports_ok():
 def test_generate_questions_rejects_missing_internal_api_key():
     response = client.post(
         "/interviews/questions/generate",
-        json={"role": "Backend Engineer", "difficulty": "MID", "count": 2, "exemplars": []},
+        json={
+            "role": "Backend Engineer",
+            "company": "Acme",
+            "difficulty": "MID",
+            "count": 2,
+            "exemplars": [],
+        },
     )
     assert response.status_code == 401
 
@@ -29,7 +35,13 @@ def test_generate_questions_returns_503_when_ai_not_configured(monkeypatch):
     response = client.post(
         "/interviews/questions/generate",
         headers={"x-internal-api-key": settings.internal_api_key},
-        json={"role": "Backend Engineer", "difficulty": "MID", "count": 2, "exemplars": []},
+        json={
+            "role": "Backend Engineer",
+            "company": "Acme",
+            "difficulty": "MID",
+            "count": 2,
+            "exemplars": [],
+        },
     )
 
     assert response.status_code == 503
@@ -67,6 +79,12 @@ def test_wrong_internal_api_key_is_rejected():
     response = client.post(
         "/interviews/questions/generate",
         headers={"x-internal-api-key": "definitely-wrong"},
-        json={"role": "Backend Engineer", "difficulty": "MID", "count": 2, "exemplars": []},
+        json={
+            "role": "Backend Engineer",
+            "company": "Acme",
+            "difficulty": "MID",
+            "count": 2,
+            "exemplars": [],
+        },
     )
     assert response.status_code == 401
