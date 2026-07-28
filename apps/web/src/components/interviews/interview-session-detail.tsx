@@ -34,7 +34,10 @@ export function InterviewSessionDetail({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center gap-2">
-        <h1 className="text-2xl font-semibold">{interviewSession.role}</h1>
+        <h1 className="text-2xl font-semibold">
+          {interviewSession.role}
+          {interviewSession.company ? ` at ${interviewSession.company}` : ""}
+        </h1>
         <Badge variant="secondary">{interviewSession.difficulty}</Badge>
         <Badge variant="outline">
           {interviewSession.status.replace("_", " ")}

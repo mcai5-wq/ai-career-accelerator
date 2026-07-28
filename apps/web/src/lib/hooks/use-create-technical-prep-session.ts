@@ -7,7 +7,7 @@ import type { TechnicalPrepSession } from "@/types/technical-prep";
 
 interface CreateTechnicalPrepSessionInput {
   companyNameRaw: string;
-  targetRole?: string;
+  targetRole: string;
 }
 
 export function useCreateTechnicalPrepSession() {

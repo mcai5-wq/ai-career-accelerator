@@ -11,14 +11,20 @@ import type { InterviewDifficulty } from "@/types/interview";
 
 export function NewInterviewForm() {
   const [role, setRole] = useState("");
+  const [company, setCompany] = useState("");
   const [difficulty, setDifficulty] = useState<InterviewDifficulty>("MID");
   const createSession = useCreateInterviewSession();
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     createSession.mutate(
-      { role, difficulty },
-      { onSuccess: () => setRole("") }
+      { role, company, difficulty },
+      {
+        onSuccess: () => {
+          setRole("");
+          setCompany("");
+        },
+      }
     );
   }
 
@@ -37,6 +43,16 @@ export function NewInterviewForm() {
               required
               value={role}
               onChange={(event) => setRole(event.target.value)}
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="interview-company">Company</Label>
+            <Input
+              id="interview-company"
+              placeholder="e.g. Stripe"
+              required
+              value={company}
+              onChange={(event) => setCompany(event.target.value)}
             />
           </div>
           <div className="flex flex-col gap-2">

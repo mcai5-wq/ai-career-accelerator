@@ -15,7 +15,7 @@ export function NewPrepForm() {
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     createSession.mutate(
-      { companyNameRaw, targetRole: targetRole || undefined },
+      { companyNameRaw, targetRole },
       {
         onSuccess: () => {
           setCompanyNameRaw("");
@@ -43,10 +43,11 @@ export function NewPrepForm() {
             />
           </div>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="prep-role">Target role (optional)</Label>
+            <Label htmlFor="prep-role">Target role</Label>
             <Input
               id="prep-role"
               placeholder="e.g. New Grad SWE"
+              required
               value={targetRole}
               onChange={(event) => setTargetRole(event.target.value)}
             />

@@ -57,6 +57,7 @@ export class AiClientService {
 
   async generateInterviewQuestions(input: {
     role: string;
+    company: string;
     difficulty: InterviewDifficulty;
     count: number;
     exemplars: QuestionExemplar[];
@@ -72,6 +73,7 @@ export class AiClientService {
         },
         body: JSON.stringify({
           role: input.role,
+          company: input.company,
           difficulty: input.difficulty,
           count: input.count,
           exemplars: input.exemplars,

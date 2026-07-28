@@ -29,6 +29,7 @@ export class InterviewsService {
   private readonly summarySelect = {
     id: true,
     role: true,
+    company: true,
     difficulty: true,
     status: true,
     overallScore: true,
@@ -68,6 +69,7 @@ export class InterviewsService {
 
     const generated = await this.aiClient.generateInterviewQuestions({
       role: dto.role,
+      company: dto.company,
       difficulty: dto.difficulty,
       count: AI_QUESTION_TARGET,
       exemplars: bankQuestions,
@@ -92,6 +94,7 @@ export class InterviewsService {
       data: {
         userId,
         role: dto.role,
+        company: dto.company,
         difficulty: dto.difficulty,
         questions: {
           create: allQuestions.map((question, index) => ({

@@ -116,6 +116,11 @@ model InterviewSession {
   id           String              @id @default(cuid())
   userId       String
   role         String              // e.g. "Backend Engineer"
+  // Nullable at the DB level only for sessions created before this field
+  // existed — CreateInterviewSessionDto has required it ever since, since
+  // the AI needs a company to ask company-relevant questions, not just a
+  // role in the abstract.
+  company      String?
   difficulty   InterviewDifficulty
   status       InterviewStatus     @default(IN_PROGRESS)
   overallScore Int?

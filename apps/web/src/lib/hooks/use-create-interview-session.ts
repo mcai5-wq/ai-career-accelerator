@@ -7,6 +7,7 @@ import type { InterviewDifficulty, InterviewSession } from "@/types/interview";
 
 interface CreateInterviewSessionInput {
   role: string;
+  company: string;
   difficulty: InterviewDifficulty;
 }
 

@@ -8,6 +8,7 @@ class QuestionExemplar(BaseModel):
 
 class GenerateQuestionsRequest(BaseModel):
     role: str
+    company: str
     difficulty: str  # "JUNIOR" | "MID" | "SENIOR"
     count: int = Field(gt=0, le=10)
     # Bank questions for this difficulty, passed in as few-shot examples so

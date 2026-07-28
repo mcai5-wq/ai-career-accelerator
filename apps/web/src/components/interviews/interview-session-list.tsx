@@ -48,6 +48,7 @@ export function InterviewSessionList() {
             <CardHeader>
               <CardTitle className="text-base">
                 {interviewSession.role}
+                {interviewSession.company ? ` at ${interviewSession.company}` : ""}
               </CardTitle>
             </CardHeader>
             <CardContent className="flex flex-wrap items-center gap-2">

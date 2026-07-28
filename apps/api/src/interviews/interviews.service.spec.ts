@@ -37,6 +37,7 @@ describe('InterviewsService', () => {
 
       await service.create('user-1', {
         role: 'Backend Engineer',
+        company: 'Acme',
         difficulty: 'MID',
       });
 
@@ -60,6 +61,7 @@ describe('InterviewsService', () => {
 
       await service.create('user-1', {
         role: 'Backend Engineer',
+        company: 'Acme',
         difficulty: 'MID',
       });
 
@@ -77,6 +79,7 @@ describe('InterviewsService', () => {
 
       await service.create('user-1', {
         role: 'Backend Engineer',
+        company: 'Acme',
         difficulty: 'JUNIOR',
       });
 
@@ -99,6 +102,7 @@ describe('InterviewsService', () => {
 
       await service.create('user-1', {
         role: 'Backend Engineer',
+        company: 'Acme',
         difficulty: 'SENIOR',
       });
 

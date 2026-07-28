@@ -27,6 +27,7 @@ def generate_questions(request: GenerateQuestionsRequest) -> GenerateQuestionsRe
 
     user_prompt = build_generate_questions_user_prompt(
         role=request.role,
+        company=request.company,
         difficulty=request.difficulty,
         count=request.count,
         exemplars=request.exemplars,

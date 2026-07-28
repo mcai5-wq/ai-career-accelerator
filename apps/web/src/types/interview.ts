@@ -2,19 +2,20 @@
 // `InterviewAnswer` models (see apps/api/prisma/schema.prisma). Backed by
 // apps/api/src/interviews:
 //   GET  /interviews
-//   POST /interviews                                    { role, difficulty }
+//   POST /interviews                                    { role, company, difficulty }
 //   GET  /interviews/:id
 //   POST /interviews/:id/questions/:questionId/answer   { answerText }
-// Questions come from a static per-difficulty bank (question-bank.ts), not
-// live AI generation — scoring/feedback is also not wired up yet, so
-// `answer.score` stays null and the UI's "Feedback pending…" state is what
-// actually renders once an answer is submitted.
+// Questions are a mix of a static per-difficulty bank (question-bank.ts)
+// and live AI generation (ai-service, using `company` to skew toward that
+// company's known interview style — see prompts/interviews.py) — `company`
+// is required for exactly that reason, not just `role` in the abstract.
 export type InterviewDifficulty = "JUNIOR" | "MID" | "SENIOR";
 export type InterviewStatus = "IN_PROGRESS" | "COMPLETED" | "ABANDONED";
 
 export interface InterviewSession {
   id: string;
   role: string;
+  company: string | null;
   difficulty: InterviewDifficulty;
   status: InterviewStatus;
   overallScore: number | null;
