@@ -21,7 +21,9 @@ export class DonationsService {
   ) {
     const secretKey = this.configService.get<string>('STRIPE_SECRET_KEY');
     this.stripe = secretKey ? new Stripe(secretKey) : null;
-    this.webhookSecret = this.configService.get<string>('STRIPE_WEBHOOK_SECRET');
+    this.webhookSecret = this.configService.get<string>(
+      'STRIPE_WEBHOOK_SECRET',
+    );
   }
 
   // Donations are anonymous by design (Donation.userId is nullable in the
@@ -53,7 +55,9 @@ export class DonationsService {
     });
 
     if (!session.url) {
-      throw new ServiceUnavailableException('Stripe did not return a checkout URL.');
+      throw new ServiceUnavailableException(
+        'Stripe did not return a checkout URL.',
+      );
     }
 
     // Recorded PENDING now, before the user even reaches Stripe's page —
@@ -76,12 +80,18 @@ export class DonationsService {
   // must never receive a re-serialized/re-parsed copy of the body.
   async handleWebhookEvent(rawBody: Buffer, signature: string) {
     if (!this.stripe || !this.webhookSecret) {
-      throw new ServiceUnavailableException('Stripe webhook is not configured.');
+      throw new ServiceUnavailableException(
+        'Stripe webhook is not configured.',
+      );
     }
 
     let event: Stripe.Event;
     try {
-      event = this.stripe.webhooks.constructEvent(rawBody, signature, this.webhookSecret);
+      event = this.stripe.webhooks.constructEvent(
+        rawBody,
+        signature,
+        this.webhookSecret,
+      );
     } catch (error) {
       this.logger.warn(
         `Rejected webhook with invalid signature: ${error instanceof Error ? error.message : String(error)}`,
@@ -91,7 +101,7 @@ export class DonationsService {
 
     switch (event.type) {
       case 'checkout.session.completed': {
-        const session = event.data.object as Stripe.Checkout.Session;
+        const session = event.data.object;
         const paymentIntentId =
           typeof session.payment_intent === 'string'
             ? session.payment_intent
@@ -107,7 +117,7 @@ export class DonationsService {
         break;
       }
       case 'checkout.session.expired': {
-        const session = event.data.object as Stripe.Checkout.Session;
+        const session = event.data.object;
         await this.prisma.donation.updateMany({
           where: { stripeSessionId: session.id },
           data: { status: 'FAILED' },

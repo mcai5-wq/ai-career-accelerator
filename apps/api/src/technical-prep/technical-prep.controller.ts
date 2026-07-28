@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -14,7 +22,10 @@ export class TechnicalPrepController {
   constructor(private readonly technicalPrepService: TechnicalPrepService) {}
 
   @Post()
-  create(@CurrentUser() user: RequestUser, @Body() dto: CreateTechnicalPrepSessionDto) {
+  create(
+    @CurrentUser() user: RequestUser,
+    @Body() dto: CreateTechnicalPrepSessionDto,
+  ) {
     return this.technicalPrepService.create(user.id, dto);
   }
 

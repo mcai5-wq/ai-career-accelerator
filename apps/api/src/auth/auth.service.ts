@@ -198,9 +198,7 @@ export class AuthService {
   async resetPassword(dto: ResetPasswordDto) {
     let payload: JwtPayload;
     try {
-      payload = await this.jwtService.verifyAsync<JwtPayload>(
-        dto.resetToken,
-      );
+      payload = await this.jwtService.verifyAsync<JwtPayload>(dto.resetToken);
     } catch {
       throw new UnauthorizedException(
         'Invalid or expired reset link. Please start over.',
@@ -212,9 +210,7 @@ export class AuthService {
     }
 
     if (await this.redisService.isRevoked(payload.jti)) {
-      throw new UnauthorizedException(
-        'This reset link has already been used.',
-      );
+      throw new UnauthorizedException('This reset link has already been used.');
     }
 
     const passwordHash = await bcrypt.hash(dto.newPassword, SALT_ROUNDS);

@@ -50,7 +50,9 @@ export class TechnicalPrepService {
   } satisfies Prisma.TechnicalPrepSessionSelect;
 
   async create(userId: string, dto: CreateTechnicalPrepSessionDto) {
-    const company = await this.findOrCreateCompanyWithBreakdown(dto.companyNameRaw);
+    const company = await this.findOrCreateCompanyWithBreakdown(
+      dto.companyNameRaw,
+    );
     await this.ensureCatalogSeeded();
 
     const problems = await this.prisma.practiceProblem.findMany({
@@ -111,7 +113,9 @@ export class TechnicalPrepService {
     });
 
     if (!progress) {
-      throw new NotFoundException('Practice problem not found in this session.');
+      throw new NotFoundException(
+        'Practice problem not found in this session.',
+      );
     }
 
     return this.prisma.technicalPrepProblemProgress.update({

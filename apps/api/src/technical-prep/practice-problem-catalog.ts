@@ -23,12 +23,14 @@ export const DEFAULT_TOPIC_BREAKDOWN = [
   {
     topic: 'Arrays & Strings',
     weight: 30,
-    rationale: 'Foundation for most technical interviews — expect at least one array/string-heavy question.',
+    rationale:
+      'Foundation for most technical interviews — expect at least one array/string-heavy question.',
   },
   {
     topic: 'Trees & Graphs',
     weight: 20,
-    rationale: 'Common for traversal, search, and dependency-ordering problems.',
+    rationale:
+      'Common for traversal, search, and dependency-ordering problems.',
   },
   {
     topic: 'Dynamic Programming',
@@ -84,14 +86,16 @@ export const PRACTICE_PROBLEM_CATALOG: Array<{
     slug: 'best-time-to-buy-and-sell-stock',
     difficulty: 'EASY',
     topics: ['arrays', 'dynamic-programming'],
-    externalUrl: 'https://leetcode.com/problems/best-time-to-buy-and-sell-stock/',
+    externalUrl:
+      'https://leetcode.com/problems/best-time-to-buy-and-sell-stock/',
   },
   {
     title: 'Longest Substring Without Repeating Characters',
     slug: 'longest-substring-without-repeating-characters',
     difficulty: 'MEDIUM',
     topics: ['strings', 'sliding-window'],
-    externalUrl: 'https://leetcode.com/problems/longest-substring-without-repeating-characters/',
+    externalUrl:
+      'https://leetcode.com/problems/longest-substring-without-repeating-characters/',
   },
   {
     title: 'Number of Islands',

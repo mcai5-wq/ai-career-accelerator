@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -21,6 +23,20 @@ import { TechnicalPrepModule } from './technical-prep/technical-prep.module';
       isGlobal: true,
       validationSchema: envValidationSchema,
     }),
+    // Default rate limit applied to every route (tracked by IP), unless
+    // overridden per-route with @Throttle({ default: {...} }) — tighter on
+    // auth/AI-calling routes, see auth.controller.ts / interviews.controller.ts
+    // / resumes.controller.ts. In-memory storage is fine for the
+    // single-instance deployment this app actually runs as; swap in a Redis
+    // storage adapter if this ever runs as multiple replicas behind a load
+    // balancer.
+    ThrottlerModule.forRoot([
+      {
+        name: 'default',
+        ttl: 60_000,
+        limit: 30,
+      },
+    ]),
     PrismaModule,
     RedisModule,
     AuthModule,
@@ -30,6 +46,6 @@ import { TechnicalPrepModule } from './technical-prep/technical-prep.module';
     // DonationsModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

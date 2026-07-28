@@ -1,0 +1,16 @@
+# Shared across every Dockerfile in this repo (all built with the repo root
+# as build context, so their COPY paths line up with actual project paths).
+node_modules
+**/node_modules
+**/.next
+**/dist
+**/coverage
+**/venv
+**/__pycache__
+**/*.pyc
+.git
+.env
+**/.env
+**/.env.local
+*.log
+.turbo

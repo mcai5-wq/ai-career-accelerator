@@ -12,9 +12,11 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Throttle } from '@nestjs/throttler';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { UserThrottlerGuard } from '../common/guards/user-throttler.guard';
 import { AnalyzeResumeDto } from './dto/analyze-resume.dto';
 import { CreateResumeDto } from './dto/create-resume.dto';
 import { UploadResumeDto } from './dto/upload-resume.dto';
@@ -59,6 +61,11 @@ export class ResumesController {
     return this.resumesService.findOne(user.id, id);
   }
 
+  // Calls the ai-service (resume analysis) — throttled per-user
+  // (UserThrottlerGuard runs after the class-level JwtAuthGuard, so
+  // req.user is already populated) rather than per-IP.
+  @UseGuards(UserThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post(':id/analyze')
   analyze(
     @CurrentUser() user: RequestUser,

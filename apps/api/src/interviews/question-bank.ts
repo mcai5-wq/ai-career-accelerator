@@ -24,37 +24,45 @@ const QUESTION_BANK: Record<InterviewDifficulty, QuestionTemplate[]> = {
     },
     {
       category: 'behavioral',
-      prompt: 'Describe a bug you struggled with. How did you eventually track it down?',
+      prompt:
+        'Describe a bug you struggled with. How did you eventually track it down?',
     },
     {
       category: 'system-design',
-      prompt: 'How would you design a simple URL shortener? What are the key pieces?',
+      prompt:
+        'How would you design a simple URL shortener? What are the key pieces?',
     },
     {
       category: 'coding',
-      prompt: "What's the difference between a stack and a queue, and when would you use each?",
+      prompt:
+        "What's the difference between a stack and a queue, and when would you use each?",
     },
   ],
   MID: [
     {
       category: 'system-design',
-      prompt: 'Design a rate limiter for a public API. What approach would you take and why?',
+      prompt:
+        'Design a rate limiter for a public API. What approach would you take and why?',
     },
     {
       category: 'coding',
-      prompt: "How would you detect a cycle in a linked list? What's the time/space complexity?",
+      prompt:
+        "How would you detect a cycle in a linked list? What's the time/space complexity?",
     },
     {
       category: 'behavioral',
-      prompt: 'Tell me about a time you disagreed with a technical decision. How did you handle it?',
+      prompt:
+        'Tell me about a time you disagreed with a technical decision. How did you handle it?',
     },
     {
       category: 'system-design',
-      prompt: 'How would you design a notification system that supports email, SMS, and push?',
+      prompt:
+        'How would you design a notification system that supports email, SMS, and push?',
     },
     {
       category: 'behavioral',
-      prompt: 'Describe a project where you had to balance speed vs. code quality. What did you decide?',
+      prompt:
+        'Describe a project where you had to balance speed vs. code quality. What did you decide?',
     },
   ],
   SENIOR: [
@@ -70,11 +78,13 @@ const QUESTION_BANK: Record<InterviewDifficulty, QuestionTemplate[]> = {
     },
     {
       category: 'system-design',
-      prompt: 'How would you design a multi-region database architecture that tolerates a full region outage?',
+      prompt:
+        'How would you design a multi-region database architecture that tolerates a full region outage?',
     },
     {
       category: 'coding',
-      prompt: "How would you design an LRU cache from scratch? Walk through the data structures you'd use.",
+      prompt:
+        "How would you design an LRU cache from scratch? Walk through the data structures you'd use.",
     },
     {
       category: 'behavioral',

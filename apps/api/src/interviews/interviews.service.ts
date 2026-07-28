@@ -1,4 +1,8 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { AiClientService } from '../ai/ai-client.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -74,8 +78,14 @@ export class InterviewsService {
     const chosenBank = bankQuestions.slice(0, bankNeeded);
 
     const allQuestions = [
-      ...chosenBank.map((question) => ({ ...question, source: 'BANK' as const })),
-      ...aiQuestions.map((question) => ({ ...question, source: 'AI_GENERATED' as const })),
+      ...chosenBank.map((question) => ({
+        ...question,
+        source: 'BANK' as const,
+      })),
+      ...aiQuestions.map((question) => ({
+        ...question,
+        source: 'AI_GENERATED' as const,
+      })),
     ];
 
     return this.prisma.interviewSession.create({
@@ -195,7 +205,9 @@ export class InterviewsService {
 
     const overallScore =
       scores.length === questions.length
-        ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length)
+        ? Math.round(
+            scores.reduce((sum, score) => sum + score, 0) / scores.length,
+          )
         : null;
 
     await this.prisma.interviewSession.update({

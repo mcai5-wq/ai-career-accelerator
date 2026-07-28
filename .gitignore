@@ -2,6 +2,7 @@
 .env
 .env.local
 apps/**/.env
+infra/.env.production
 
 # Python
 apps/ai-service/venv/
