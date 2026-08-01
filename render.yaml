@@ -1,0 +1,69 @@
+# Render "Blueprint" — connect this repo via Render's "New > Blueprint",
+# and it provisions both services below from this one file instead of
+# configuring each by hand. Values marked `sync: false` prompt you for a
+# real value during setup (Render never stores them in this file/repo).
+#
+# Both services are Docker-based (see apps/api/Dockerfile and
+# apps/ai-service/Dockerfile), each with its own EXPOSE'd port that Render
+# routes to directly — neither needs Render's dynamic $PORT injection,
+# which is a buildpack-only convention.
+#
+# ai-service is deployed as a public "web" service (Render's free tier
+# doesn't reliably offer private services) but this is still safe: every
+# route in it is gated by the same INTERNAL_API_KEY guard the frontend
+# uses to call the NestJS API — an internal-only architecture enforced by
+# the app itself, not by network placement.
+services:
+  - type: web
+    name: api
+    runtime: docker
+    dockerfilePath: apps/api/Dockerfile
+    dockerContext: .
+    plan: free
+    envVars:
+      # --- secrets / environment-specific — you'll be prompted for these ---
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: INTERNAL_API_KEY
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      # The frontend's real URL — update after Vercel deploys (see step 6
+      # of the deployment checklist). CORS checks against this exactly.
+      - key: FRONTEND_URL
+        sync: false
+      # ai-service's Render URL — fill in after that service deploys below
+      # (chicken-and-egg: it needs to exist first to have a URL).
+      - key: AI_SERVICE_URL
+        sync: false
+
+      # --- static config, safe to commit ---
+      - key: JWT_ACCESS_EXPIRES_IN
+        value: 15m
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 7d
+      - key: SMTP_HOST
+        value: smtp.resend.com
+      - key: SMTP_PORT
+        value: 587
+      - key: SMTP_USER
+        value: resend
+      - key: MAIL_FROM
+        value: onboarding@resend.dev
+
+  - type: web
+    name: ai-service
+    runtime: docker
+    dockerfilePath: apps/ai-service/Dockerfile
+    dockerContext: .
+    plan: free
+    envVars:
+      - key: AI_API_KEY
+        sync: false
+      # Must match the api service's INTERNAL_API_KEY exactly.
+      - key: INTERNAL_API_KEY
+        sync: false
