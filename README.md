@@ -18,22 +18,28 @@ A full-stack app that helps job seekers prep for jobs using AI. It covers resume
 
 ```mermaid
 flowchart LR
-    subgraph Client
-        Web["Next.js (apps/web)"]
+    User(("User"))
+
+    subgraph Vercel
+        Web["Next.js frontend"]
     end
-    subgraph Backend
-        Api["NestJS API (apps/api)"]
-        Ai["AI microservice (apps/ai-service)"]
+
+    subgraph Render
+        Api["NestJS API"]
+        Ai["Python AI service"]
     end
-    subgraph Data
+
+    subgraph "Neon / Upstash"
         Pg[(PostgreSQL)]
         Redis[(Redis)]
     end
-    Llm["LLM provider (Groq)"]
 
-    Web -->|REST| Api
-    Api -->|internal API key| Ai
-    Ai --> Llm
+    Groq["Groq LLM"]
+
+    User --> Web
+    Web -->|"REST + JWT"| Api
+    Api -->|"internal key"| Ai
+    Ai --> Groq
     Api --> Pg
     Api --> Redis
 ```
@@ -66,16 +72,9 @@ render.yaml     Render Blueprint for deploying api + ai-service
 You'll need Node 24+, Python 3.13+, and Docker installed.
 
 ```bash
-# install JS dependencies (this is an npm workspaces monorepo, run at the repo root)
 npm install
-
-# start local Postgres + Redis
 npm run db:up
-
-# apply database migrations
 npm run db:migrate
-
-# start the web and api apps
 npm run dev
 ```
 
@@ -92,10 +91,7 @@ Each app is configured through environment variables. Check `infra/.env.producti
 ## Testing
 
 ```bash
-# API unit tests
 cd apps/api && npm test
-
-# AI service tests
 cd apps/ai-service && pytest
 ```
 
