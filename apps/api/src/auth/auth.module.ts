@@ -11,8 +11,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
   imports: [
     PassportModule,
     MailModule,
-    // registerAsync because the secret comes from ConfigService, which
-    // itself depends on ConfigModule having finished loading env vars first.
+    // registerAsync since the secret comes from ConfigService.
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

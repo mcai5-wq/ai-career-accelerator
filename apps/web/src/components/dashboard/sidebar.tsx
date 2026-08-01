@@ -45,9 +45,7 @@ export function DashboardSidebar() {
           );
         })}
       </nav>
-      {/* Donations feature is built (see /donate, apps/api/src/donations)
-          but disabled until real Stripe keys are configured — see
-          apps/api/src/app.module.ts.
+      {/* Donations is built but disabled — see apps/api/src/app.module.ts.
       <div className="mt-auto pt-4">
         <Link
           href="/donate"

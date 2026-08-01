@@ -13,8 +13,7 @@ import type { Request } from 'express';
 import { CreateCheckoutSessionDto } from './dto/create-checkout-session.dto';
 import { DonationsService } from './donations.service';
 
-// Both routes are intentionally public — donations don't require an
-// account, and the webhook is called by Stripe itself, not a browser.
+// Both routes are public — donations don't require an account.
 @Controller('donations')
 export class DonationsController {
   constructor(private readonly donationsService: DonationsService) {}
@@ -24,9 +23,7 @@ export class DonationsController {
     return this.donationsService.createCheckoutSession(dto);
   }
 
-  // Stripe retries on non-2xx, so this must return 200 once the event is
-  // handled (or safely ignored) — throwing only for a genuinely invalid
-  // signature, which Stripe won't retry into fixing itself.
+  // Stripe retries on anything non-2xx, so only a bad signature should throw.
   @Post('webhook')
   @HttpCode(HttpStatus.OK)
   handleWebhook(

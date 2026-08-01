@@ -6,10 +6,9 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { envValidationSchema } from './config/env.validation';
-// Donations feature is fully built (see ./donations) but disabled — not
-// ready to require real Stripe keys yet. Uncomment both this import and
-// DonationsModule below (and the frontend links, see apps/web/src/app/page.tsx
-// and components/dashboard/sidebar.tsx) to turn it back on.
+// Donations is built (see ./donations) but disabled until real Stripe keys
+// exist. Uncomment this import + DonationsModule below to turn it back on
+// (also re-enable the links in page.tsx and dashboard/sidebar.tsx).
 // import { DonationsModule } from './donations/donations.module';
 import { InterviewsModule } from './interviews/interviews.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -23,13 +22,8 @@ import { TechnicalPrepModule } from './technical-prep/technical-prep.module';
       isGlobal: true,
       validationSchema: envValidationSchema,
     }),
-    // Default rate limit applied to every route (tracked by IP), unless
-    // overridden per-route with @Throttle({ default: {...} }) — tighter on
-    // auth/AI-calling routes, see auth.controller.ts / interviews.controller.ts
-    // / resumes.controller.ts. In-memory storage is fine for the
-    // single-instance deployment this app actually runs as; swap in a Redis
-    // storage adapter if this ever runs as multiple replicas behind a load
-    // balancer.
+    // Default rate limit per route, tracked by IP unless overridden (see
+    // @Throttle usages in auth/interviews/resumes controllers).
     ThrottlerModule.forRoot([
       {
         name: 'default',

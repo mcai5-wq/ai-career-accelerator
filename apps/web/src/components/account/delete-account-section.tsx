@@ -26,9 +26,6 @@ export function DeleteAccountSection() {
 
   async function handleDelete() {
     await deleteAccount.mutateAsync();
-    // The account (and its access token) is already gone server-side;
-    // this just clears the browser's session cookie and lands on the
-    // landing page.
     await signOut({ redirect: false });
     router.push("/");
   }

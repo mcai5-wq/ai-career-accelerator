@@ -8,16 +8,12 @@ import { CreateInterviewSessionDto } from './dto/create-interview-session.dto';
 import { SubmitAnswerDto } from './dto/submit-answer.dto';
 import { InterviewsService } from './interviews.service';
 
-// Every route here requires a valid Bearer token — there's no public read
-// access to anyone's interview sessions.
 @UseGuards(JwtAuthGuard)
 @Controller('interviews')
 export class InterviewsController {
   constructor(private readonly interviewsService: InterviewsService) {}
 
-  // Calls the ai-service (question generation) — throttled per-user
-  // (UserThrottlerGuard runs after JwtAuthGuard above, so req.user is
-  // already populated) rather than per-IP, since this is authenticated.
+  // Throttled per-user, not per-IP, since it's already authenticated.
   @UseGuards(UserThrottlerGuard)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post()
@@ -38,8 +34,6 @@ export class InterviewsController {
     return this.interviewsService.findOne(user.id, id);
   }
 
-  // Calls the ai-service (answer grading) — same per-user throttling as
-  // create() above.
   @UseGuards(UserThrottlerGuard)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post(':id/questions/:questionId/answer')

@@ -24,8 +24,6 @@ import { ResumesService } from './resumes.service';
 
 const MAX_PDF_BYTES = 5 * 1024 * 1024;
 
-// Every route here requires a valid Bearer token — there's no public read
-// access to anyone's resumes.
 @UseGuards(JwtAuthGuard)
 @Controller('resumes')
 export class ResumesController {
@@ -36,9 +34,8 @@ export class ResumesController {
     return this.resumesService.create(user.id, dto);
   }
 
-  // multipart/form-data: a `title` field plus a `file` field (the PDF).
-  // No `storage`/`dest` option -> multer defaults to in-memory, so the file
-  // never touches disk; it's only ever read as a Buffer for text extraction.
+  // No storage/dest option -> multer keeps the file in memory only, never
+  // written to disk.
   @Post('upload')
   @UseInterceptors(
     FileInterceptor('file', { limits: { fileSize: MAX_PDF_BYTES } }),
@@ -61,9 +58,6 @@ export class ResumesController {
     return this.resumesService.findOne(user.id, id);
   }
 
-  // Calls the ai-service (resume analysis) — throttled per-user
-  // (UserThrottlerGuard runs after the class-level JwtAuthGuard, so
-  // req.user is already populated) rather than per-IP.
   @UseGuards(UserThrottlerGuard)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post(':id/analyze')

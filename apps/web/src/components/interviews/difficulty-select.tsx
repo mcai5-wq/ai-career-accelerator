@@ -14,9 +14,6 @@ interface DifficultySelectProps {
   onChange: (value: InterviewDifficulty) => void;
 }
 
-// A plain toggle-button group rather than a full Select primitive — there's
-// no shadcn/Base UI Select in this project yet, and three fixed options
-// don't need one.
 export function DifficultySelect({ value, onChange }: DifficultySelectProps) {
   return (
     <div className="flex gap-2">

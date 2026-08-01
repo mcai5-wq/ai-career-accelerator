@@ -1,8 +1,7 @@
 import { Prisma, ProblemDifficulty } from '@prisma/client';
 
-// Turns a company name into a URL-safe, unique-ish key. Falls back to a
-// random suffix if the name is all punctuation/whitespace (e.g. "???"),
-// so the Company.slug unique constraint can never collide on an empty string.
+// Falls back to a random suffix if the name is all punctuation/whitespace,
+// so the slug is never empty.
 export function slugify(value: string): string {
   const slug = value
     .trim()
@@ -13,10 +12,7 @@ export function slugify(value: string): string {
   return slug || `company-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-// Fallback only — used when the ai-service is unavailable/unconfigured and
-// there's no previously-cached breakdown for this company either (see
-// TechnicalPrepService.generateTopicBreakdown). The real path asks the
-// ai-service to weight actual topics for the specific company + role.
+// Last-resort fallback — see TechnicalPrepService.generateTopicBreakdown.
 export const DEFAULT_TOPIC_BREAKDOWN = [
   {
     topic: 'Arrays & Strings',
@@ -47,10 +43,8 @@ export const DEFAULT_TOPIC_BREAKDOWN = [
   },
 ] satisfies Prisma.JsonArray;
 
-// A small, fixed catalog of well-known public problems — real titles/URLs,
-// no problem content reproduced. Seeded lazily (see ensureCatalogSeeded in
-// the service) the first time any session is created, so there's no manual
-// `prisma db seed` step to run.
+// Real titles/URLs only, no problem content reproduced. Seeded lazily on
+// first use (see ensureCatalogSeeded).
 export const PRACTICE_PROBLEM_CATALOG: Array<{
   title: string;
   slug: string;
@@ -146,20 +140,13 @@ export const PRACTICE_PROBLEM_CATALOG: Array<{
   },
 ];
 
-// Every distinct tag actually used in the catalog above — this is the exact
-// vocabulary the ai-service is told to weight topics from (plus "System
-// Design"/"Behavioral", which don't map to catalog problems but are still
-// useful for the displayed breakdown). Constraining the AI to this fixed
-// list, rather than letting it invent free-form topic names, is what makes
-// matching an AI-weighted topic back to catalog problems reliable — see
-// TechnicalPrepService.selectProblemsForBreakdown.
+// Every distinct tag used in the catalog above — the fixed vocabulary
+// topics get weighted from, so they always match back to real problems.
 export const CATALOG_TOPIC_TAGS = Array.from(
   new Set(PRACTICE_PROBLEM_CATALOG.flatMap((problem) => problem.topics)),
 ).sort();
 
-// Cosmetic only — lets the topic breakdown display as "Dynamic Programming"
-// instead of the raw "dynamic-programming" tag, without needing a separate
-// "pretty name" field the AI would have to keep in sync.
+// Display labels for the raw tags, e.g. "dynamic-programming" -> "Dynamic Programming".
 export const TOPIC_TAG_DISPLAY_NAMES: Record<string, string> = {
   arrays: 'Arrays',
   'hash-map': 'Hash Maps',

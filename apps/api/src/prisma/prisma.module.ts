@@ -1,8 +1,7 @@
 import { Global, Module } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
 
-// @Global() so every feature module can inject PrismaService without each
-// one re-importing PrismaModule individually.
+// Global so other modules don't each have to import this one.
 @Global()
 @Module({
   providers: [PrismaService],

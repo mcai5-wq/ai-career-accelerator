@@ -10,9 +10,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AnalyzeResumeDto } from './dto/analyze-resume.dto';
 import { CreateResumeDto } from './dto/create-resume.dto';
 
-// The first bytes of every valid PDF file ("magic bytes") — checked in
-// addition to the browser-supplied mimetype, which is just a client claim
-// and easy to spoof by renaming a file.
+// Real PDF header bytes — checked since the browser-supplied mimetype is
+// just a claim and easy to spoof by renaming a file.
 const PDF_MAGIC_BYTES = '%PDF-';
 
 @Injectable()
@@ -22,10 +21,8 @@ export class ResumesService {
     private readonly aiClient: AiClientService,
   ) {}
 
-  // Shared shape for list/create responses — matches the frontend's
-  // `Resume` type (apps/web/src/types/resume.ts) exactly, and deliberately
-  // excludes `rawText`/`parsedData` so the list view doesn't ship a resume's
-  // full text over the wire just to render a card.
+  // Leaves out rawText/parsedData so listing resumes doesn't ship full
+  // resume text just to render a card.
   private readonly summarySelect = {
     id: true,
     title: true,
@@ -35,9 +32,6 @@ export class ResumesService {
     },
   } satisfies Prisma.ResumeSelect;
 
-  // Full analysis detail — used on the resume detail page, unlike the
-  // lightweight { id, status, atsScore } shape summarySelect uses for list
-  // cards.
   private readonly analysisSelect = {
     id: true,
     status: true,
@@ -86,7 +80,6 @@ export class ResumesService {
       const result = await parser.getText();
       rawText = result.text.trim();
     } finally {
-      // Frees the parser's internal buffers regardless of success/failure.
       await parser.destroy();
     }
 
@@ -108,8 +101,6 @@ export class ResumesService {
   }
 
   async findOne(userId: string, id: string) {
-    // findFirst with { id, userId } (not findUnique on id alone) so a user
-    // can't fetch someone else's resume by guessing its id.
     const resume = await this.prisma.resume.findFirst({
       where: { id, userId },
       select: {
@@ -117,9 +108,7 @@ export class ResumesService {
         rawText: true,
         fileUrl: true,
         parsedData: true,
-        // Overrides summarySelect's lightweight { id, status, atsScore }
-        // analyses select with the full detail shape — object spread order
-        // means this later key wins.
+        // Overrides the lightweight analyses select above with full detail.
         analyses: {
           select: this.analysisSelect,
           orderBy: { createdAt: 'desc' },
@@ -134,14 +123,8 @@ export class ResumesService {
     return resume;
   }
 
-  // Simulates an ATS scan of this resume against a target role. Creates a
-  // JobDescription row from whatever the user typed (just a title, or a
-  // full posting) so the analysis stays linked to what it was actually
-  // judged against, then asks the ai-service to score it. There's no
-  // sensible non-AI fallback for this (unlike interview questions, which
-  // can fall back to a static bank) — an ATS score is inherently a
-  // judgment call, so an unavailable AI service produces a FAILED analysis
-  // with a clear reason instead of a fake score.
+  // No fallback score if the model call fails — unlike interview questions
+  // there's no static bank to fall back to, so this just records why.
   async analyze(userId: string, resumeId: string, dto: AnalyzeResumeDto) {
     const resume = await this.prisma.resume.findFirst({
       where: { id: resumeId, userId },
@@ -197,9 +180,7 @@ export class ResumesService {
   }
 
   async remove(userId: string, id: string) {
-    // deleteMany (not delete) so the ownership check and the delete happen
-    // in one query instead of a separate "find, then check owner, then
-    // delete" sequence.
+    // deleteMany so the ownership check and delete happen in one query.
     const { count } = await this.prisma.resume.deleteMany({
       where: { id, userId },
     });

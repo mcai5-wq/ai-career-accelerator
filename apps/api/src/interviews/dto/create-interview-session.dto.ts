@@ -7,9 +7,6 @@ export class CreateInterviewSessionDto {
   @MaxLength(100)
   role: string;
 
-  // Required — not just role — so the AI generates questions relevant to
-  // this specific company's known interview style/focus, not just a
-  // generic role-shaped question. See ai-service/app/prompts/interviews.py.
   @IsString()
   @MinLength(1)
   @MaxLength(100)

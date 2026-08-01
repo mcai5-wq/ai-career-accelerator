@@ -16,8 +16,6 @@ export function useUploadResume() {
 
   return useMutation({
     mutationFn: ({ title, file }: UploadResumeInput) => {
-      // multipart/form-data — apiClient/apiFetch detect the FormData body
-      // and skip JSON.stringify + the JSON Content-Type header for it.
       const formData = new FormData();
       formData.append("title", title);
       formData.append("file", file);

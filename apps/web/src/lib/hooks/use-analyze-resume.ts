@@ -20,8 +20,7 @@ export function useAnalyzeResume() {
     mutationFn: ({ resumeId, ...body }: AnalyzeResumeInput) =>
       apiClient.post<ResumeAnalysis>(`/resumes/${resumeId}/analyze`, body, {
         token: session?.accessToken,
-        // Longer than the 20s default — a full resume + job description is
-        // a lot more input than a single interview question/answer.
+        // Longer than the 20s default — a full resume takes more input than one question.
         signal: AbortSignal.timeout(45_000),
       }),
     onSuccess: (_data, variables) => {

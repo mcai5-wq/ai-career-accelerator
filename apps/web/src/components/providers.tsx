@@ -7,10 +7,9 @@ import { SessionProvider, signOut, useSession } from "next-auth/react";
 import type { Session } from "next-auth";
 import { getQueryClient } from "@/lib/query-client";
 
-// If the refresh token itself is expired/revoked, lib/auth.ts's jwt
-// callback can no longer renew the access token and sets session.error.
-// Without this, the user would be stuck "logged in" with a session that
-// 401s on every request instead of being sent back to /login.
+// Signs the user out if the refresh token dies and lib/auth.ts can't renew
+// the session anymore — otherwise they'd be stuck "logged in" with every
+// request failing.
 function SessionErrorHandler() {
   const { data: session } = useSession();
 

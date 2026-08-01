@@ -10,8 +10,6 @@ class AnalyzeResumeRequest(BaseModel):
     resume_text: str
     job_title: str
     company: str | None = None
-    # Optional — if omitted (or equal to just the title), the resume is
-    # analyzed against the job title alone rather than a full posting.
     job_description_text: str | None = None
 
 

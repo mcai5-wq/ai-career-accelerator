@@ -11,10 +11,8 @@ import { SubmitAnswerDto } from './dto/submit-answer.dto';
 import { getQuestionsForDifficulty } from './question-bank';
 
 const QUESTIONS_PER_SESSION = 5;
-// How many of the 5 we *attempt* to source from AI — the rest are filled in
-// from the bank, so a session always has exactly 5 questions whether or not
-// AI generation is available. Kept low relative to the bank so a single bad
-// generation can't dominate a session's quality.
+// How many of the 5 we try to generate — the rest come from the bank, so a
+// session always ends up with exactly 5 either way.
 const AI_QUESTION_TARGET = 2;
 
 @Injectable()
@@ -24,8 +22,6 @@ export class InterviewsService {
     private readonly aiClient: AiClientService,
   ) {}
 
-  // Matches the frontend's `InterviewSession` type (types/interview.ts) —
-  // list/summary views don't need the questions.
   private readonly summarySelect = {
     id: true,
     role: true,
@@ -59,11 +55,6 @@ export class InterviewsService {
     },
   } satisfies Prisma.InterviewSessionSelect;
 
-  // Every session gets QUESTIONS_PER_SESSION questions: as many as possible
-  // from AI generation (using the bank as few-shot style exemplars so
-  // generated ones read like the hand-curated ones), topped up with bank
-  // questions for whatever AI didn't produce. With no ai-service configured
-  // this degrades to "all bank" — today's behavior, unchanged.
   async create(userId: string, dto: CreateInterviewSessionDto) {
     const bankQuestions = getQuestionsForDifficulty(dto.difficulty);
 
@@ -118,8 +109,6 @@ export class InterviewsService {
   }
 
   async findOne(userId: string, id: string) {
-    // findFirst with { id, userId } (not findUnique on id alone) so a user
-    // can't fetch someone else's session by guessing its id.
     const session = await this.prisma.interviewSession.findFirst({
       where: { id, userId },
       select: this.detailSelect,
@@ -138,10 +127,7 @@ export class InterviewsService {
     questionId: string,
     dto: SubmitAnswerDto,
   ) {
-    // The nested `session: { userId }` filter is what actually enforces
-    // ownership here — sessionId + questionId alone would let a user answer
-    // a question that belongs to someone else's session of the same id
-    // pattern, if they somehow guessed both ids.
+    // session: { userId } is what checks ownership here, not just the ids.
     const question = await this.prisma.interviewQuestion.findFirst({
       where: { id: questionId, sessionId, session: { userId } },
       include: { answer: true },
@@ -160,9 +146,7 @@ export class InterviewsService {
       select: this.answerSelect,
     });
 
-    // Best-effort: if AI grading isn't available, the answer is left as-is
-    // (score: null) and the frontend shows "Feedback pending…" — same
-    // behavior as before AI grading existed at all.
+    // If grading isn't available the answer just stays ungraded (score: null).
     const grading = await this.aiClient.gradeInterviewAnswer({
       prompt: question.prompt,
       category: question.category,
@@ -189,10 +173,8 @@ export class InterviewsService {
     return result;
   }
 
-  // Flips status once every question has a submitted answer, the same way
-  // a human would consider the session "done". `overallScore` only gets set
-  // once every answer has actually been graded — a partial average would
-  // misleadingly imply the whole session was scored.
+  // overallScore only gets set once every answer is graded — a partial
+  // average would be misleading.
   private async completeSessionIfFullyAnswered(sessionId: string) {
     const questions = await this.prisma.interviewQuestion.findMany({
       where: { sessionId },

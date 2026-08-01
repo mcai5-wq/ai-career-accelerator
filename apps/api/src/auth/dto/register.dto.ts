@@ -12,8 +12,7 @@ export class RegisterDto {
 
   @IsString()
   @MinLength(8, { message: 'Password must be at least 8 characters.' })
-  // bcrypt silently ignores bytes past 72 — reject longer input instead of
-  // pretending the extra characters matter.
+  // bcrypt ignores anything past 72 bytes.
   @MaxLength(72)
   password: string;
 

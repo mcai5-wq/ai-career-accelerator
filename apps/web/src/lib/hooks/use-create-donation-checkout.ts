@@ -8,8 +8,7 @@ interface CreateDonationCheckoutInput {
   amountCents: number;
 }
 
-// No token — donations are anonymous, no session required (see
-// apps/api/src/donations/donations.controller.ts).
+// No token — donations are anonymous, no session required.
 export function useCreateDonationCheckout() {
   return useMutation({
     mutationFn: (input: CreateDonationCheckoutInput) =>

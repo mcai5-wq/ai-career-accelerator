@@ -32,8 +32,6 @@ export function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Step 1: a plain API call (not signIn) — just checks the password and,
-  // if correct, has the backend email a code. No session exists yet.
   async function handleCredentialsSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
@@ -49,8 +47,6 @@ export function LoginForm() {
     }
   }
 
-  // Step 2: signIn() re-checks the password *and* the code together — this
-  // is what actually creates the session.
   async function handleCodeSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);

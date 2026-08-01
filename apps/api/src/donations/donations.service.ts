@@ -26,9 +26,7 @@ export class DonationsService {
     );
   }
 
-  // Donations are anonymous by design (Donation.userId is nullable in the
-  // schema for exactly this) — this endpoint sits outside JwtAuthGuard
-  // entirely, so there's no logged-in user to attach even if one exists.
+  // Donations are anonymous — Donation.userId is nullable for this reason.
   async createCheckoutSession(dto: CreateCheckoutSessionDto) {
     if (!this.stripe) {
       throw new ServiceUnavailableException(
@@ -60,10 +58,7 @@ export class DonationsService {
       );
     }
 
-    // Recorded PENDING now, before the user even reaches Stripe's page —
-    // handleWebhookEvent below is what actually confirms payment. If they
-    // abandon checkout, this row simply stays PENDING (or the
-    // checkout.session.expired handler flips it to FAILED).
+    // PENDING until the webhook confirms payment (or expires it).
     await this.prisma.donation.create({
       data: {
         stripeSessionId: session.id,
@@ -75,9 +70,8 @@ export class DonationsService {
     return { url: session.url };
   }
 
-  // Called by donations.controller.ts with the exact raw request bytes —
-  // Stripe's signature is computed over those bytes specifically, so this
-  // must never receive a re-serialized/re-parsed copy of the body.
+  // rawBody has to be the exact bytes Stripe sent, not a re-parsed copy —
+  // the signature is computed over those bytes specifically.
   async handleWebhookEvent(rawBody: Buffer, signature: string) {
     if (!this.stripe || !this.webhookSecret) {
       throw new ServiceUnavailableException(
@@ -107,9 +101,7 @@ export class DonationsService {
             ? session.payment_intent
             : (session.payment_intent?.id ?? null);
 
-        // updateMany (not update) so a webhook for a session we don't
-        // recognize — e.g. a Stripe CLI test event — is a no-op instead of
-        // a 500 from a failed findUnique.
+        // updateMany so an unrecognized session id is a no-op, not a 500.
         await this.prisma.donation.updateMany({
           where: { stripeSessionId: session.id },
           data: { status: 'SUCCEEDED', stripePaymentId: paymentIntentId },

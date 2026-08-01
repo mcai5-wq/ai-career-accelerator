@@ -14,8 +14,6 @@ import { CreateTechnicalPrepSessionDto } from './dto/create-technical-prep-sessi
 import { UpdateProblemProgressDto } from './dto/update-problem-progress.dto';
 import { TechnicalPrepService } from './technical-prep.service';
 
-// Every route here requires a valid Bearer token — there's no public read
-// access to anyone's technical prep sessions.
 @UseGuards(JwtAuthGuard)
 @Controller('technical-prep')
 export class TechnicalPrepController {

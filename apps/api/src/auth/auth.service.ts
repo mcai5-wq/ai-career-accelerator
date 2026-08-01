@@ -23,9 +23,7 @@ const SALT_ROUNDS = 12;
 const OTP_TTL_SECONDS = 10 * 60;
 const OTP_MAX_ATTEMPTS = 5;
 const PASSWORD_RESET_TOKEN_EXPIRES_IN = '15m';
-// Separate Redis OTP namespace from the login/register flow (both keyed by
-// email) so a pending "forgot password" code can't collide with, or be
-// overwritten by, a pending login code for the same address.
+// Own prefix so a pending reset code can't collide with a pending login code.
 const PASSWORD_RESET_OTP_PREFIX = 'password-reset:';
 
 interface AuthUser {
@@ -44,11 +42,6 @@ export class AuthService {
     private readonly mailService: MailService,
   ) {}
 
-  // Creates the account, then sends a verification code the same as
-  // login() below — a password only proves the user chose one, not that
-  // they actually control this email address. verifyLoginCode is what
-  // actually completes both registration and login; there's no separate
-  // "instant" registration path anymore.
   async register(dto: RegisterDto) {
     const existing = await this.prisma.user.findUnique({
       where: { email: dto.email },
@@ -71,8 +64,6 @@ export class AuthService {
     return { requiresVerification: true, email: user.email };
   }
 
-  // Step 1 of credentials login: verify the password, then email a code
-  // instead of returning tokens directly. Step 2 is verifyLoginCode below.
   async login(dto: LoginDto) {
     const user = await this.verifyPassword(dto.email, dto.password);
     await this.sendVerificationCode(user.email);
@@ -89,9 +80,8 @@ export class AuthService {
     await this.mailService.sendLoginCode(email, code);
   }
 
-  // Step 2: re-checks the password (not just the code) so a leaked/guessed
-  // code alone can't complete a login — real 2FA, not "code instead of
-  // password."
+  // Checks the password again here too, not just the code — otherwise a
+  // leaked code alone would be enough to sign in.
   async verifyLoginCode(dto: VerifyLoginCodeDto) {
     const user = await this.verifyPassword(dto.email, dto.password);
 
@@ -121,10 +111,8 @@ export class AuthService {
     return this.buildAuthResponse(user);
   }
 
-  // Step 1: emails a code if (and only if) the address belongs to an
-  // account with a password — but always returns the same generic response
-  // either way, so this endpoint can't be used to enumerate registered
-  // emails or distinguish password-only vs. Google-only accounts.
+  // Same response whether or not the account exists/has a password, so this
+  // can't be used to find out who's registered.
   async forgotPassword(dto: ForgotPasswordDto) {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
@@ -143,9 +131,6 @@ export class AuthService {
     return { requiresVerification: true, email: dto.email };
   }
 
-  // Step 2: checks the emailed code, then issues a short-lived, single-use
-  // token authorizing (only) the actual password change in step 3 — the
-  // frontend never has to hold onto the code itself past this point.
   async verifyForgotPasswordCode(dto: VerifyForgotPasswordCodeDto) {
     const otpKey = `${PASSWORD_RESET_OTP_PREFIX}${dto.email}`;
     const record = await this.redisService.getOtp(otpKey);
@@ -173,8 +158,6 @@ export class AuthService {
 
     await this.redisService.deleteOtp(otpKey);
 
-    // Re-fetch rather than trust the request — the account could have been
-    // deleted in the (short) window since the code was requested.
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
@@ -190,11 +173,9 @@ export class AuthService {
     return { resetToken };
   }
 
-  // Step 3: the only step that actually touches passwordHash. Doesn't
-  // re-verify the code — the resetToken from step 2 already proves that —
-  // but does burn the token immediately after use (via the same Redis
-  // revocation blocklist logout uses) so it can't be replayed even though
-  // it's still within its ~15min expiry.
+  // The resetToken already proves the code was correct, so this doesn't
+  // check it again — it just burns the token right after use so it can't
+  // be replayed inside its own expiry window.
   async resetPassword(dto: ResetPasswordDto) {
     let payload: JwtPayload;
     try {
@@ -228,8 +209,7 @@ export class AuthService {
   private async verifyPassword(email: string, password: string) {
     const user = await this.prisma.user.findUnique({ where: { email } });
 
-    // Same error whether the email doesn't exist or the password is wrong —
-    // don't give attackers a way to enumerate registered emails.
+    // Same error either way — don't tell attackers which emails exist.
     if (!user || !user.passwordHash) {
       throw new UnauthorizedException('Invalid email or password.');
     }
@@ -243,10 +223,8 @@ export class AuthService {
   }
 
   async loginWithOAuth(dto: OAuthExchangeDto) {
-    // Link by email rather than rejecting: someone who registered with
-    // Credentials and later clicks "Continue with Google" using the same
-    // address gets signed into the *same* account instead of a duplicate
-    // one. passwordHash is left untouched either way.
+    // Match by email so a Credentials account and a Google sign-in with the
+    // same address land on one account instead of two.
     let user = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
@@ -277,8 +255,6 @@ export class AuthService {
       throw new UnauthorizedException('Invalid token type.');
     }
 
-    // A logged-out refresh token is still cryptographically valid until its
-    // natural 7-day expiry — this is what actually stops it from working.
     if (await this.redisService.isRevoked(payload.jti)) {
       throw new UnauthorizedException('Refresh token has been revoked.');
     }
@@ -294,9 +270,6 @@ export class AuthService {
     return { accessToken };
   }
 
-  // Revokes both the access token currently in use (so it stops working
-  // immediately, not just after its ~15min lifetime) and the refresh token
-  // (so it can't be used to mint new access tokens either).
   async logout(
     accessToken: { jti: string; exp?: number },
     refreshToken: string,
@@ -314,17 +287,11 @@ export class AuthService {
         await this.redisService.revoke(payload.jti, payload.exp - now);
       }
     } catch {
-      // Already invalid/expired — nothing left to revoke, not an error.
+      // Already invalid — nothing to revoke.
     }
   }
 
-  // Deletes the account outright — Prisma's onDelete: Cascade on Resume,
-  // InterviewSession, TechnicalPrepSession, etc. (schema.prisma) means this
-  // one query removes all of the user's data, not just the row itself.
-  // Doesn't need the refresh token: once the user row is gone, refresh()
-  // already rejects it via its own "User no longer exists" check, so
-  // there's nothing extra to revoke there — only the *current* access
-  // token needs explicit revocation to stop working immediately.
+  // Cascade deletes handle the rest of the user's data (schema.prisma).
   async deleteAccount(
     userId: string,
     accessToken: { jti: string; exp?: number },
@@ -359,9 +326,6 @@ export class AuthService {
       });
     }
 
-    // configService.get<string>(...) returns a plain `string`, but
-    // JwtSignOptions wants the stricter `ms`-style literal type — the value
-    // itself ("15m", "7d") is valid, so we assert rather than widen the type.
     const expiresIn = this.configService.get<string>(
       type === 'access' ? 'JWT_ACCESS_EXPIRES_IN' : 'JWT_REFRESH_EXPIRES_IN',
     ) as JwtSignOptions['expiresIn'];

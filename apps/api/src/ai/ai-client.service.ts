@@ -38,15 +38,9 @@ interface TopicWeight {
   rationale: string;
 }
 
-// Thin HTTP client for the Python ai-service (apps/ai-service), which by
-// default calls Groq's free, OpenAI-compatible endpoint (see
-// ai-service/app/core/config.py) — swapping providers only touches that
-// file. Every method here returns `null` instead of throwing whenever
-// generation/grading isn't available — missing AI_SERVICE_URL, the service
-// being down, or no real AI_API_KEY configured on that side all look the
-// same to callers: "AI isn't available right now, fall back to the static
-// bank / leave this answer ungraded." Callers (InterviewsService) never
-// need to know which of those it was.
+// Thin HTTP client for the Python ai-service. Every method here returns
+// null instead of throwing when something's unavailable — missing config,
+// service down, whatever — so callers just fall back instead of erroring.
 @Injectable()
 export class AiClientService {
   private readonly logger = new Logger(AiClientService.name);
@@ -152,11 +146,6 @@ export class AiClientService {
     }
   }
 
-  // Unlike questions/grading, there's no static fallback for a resume ATS
-  // score — it's inherently a judgment call, not something a bank of
-  // canned content can approximate. `null` here means the caller should
-  // record the analysis as FAILED with a clear reason, not silently
-  // succeed with fake data.
   async analyzeResume(input: {
     resumeText: string;
     jobTitle: string;
@@ -208,13 +197,6 @@ export class AiClientService {
     }
   }
 
-  // Weights a fixed, caller-supplied topic vocabulary for a company+role —
-  // deliberately doesn't let the AI invent new topic names, since the
-  // result has to map back to real catalog problems (see
-  // TechnicalPrepService.selectProblemsForBreakdown). `null` means the
-  // caller should fall back to a cached/default breakdown, same as
-  // analyzeResume's "no fake data" rule — a topic emphasis is a judgment
-  // call, not something a static bank can approximate either.
   async analyzeTechnicalPrepTopics(input: {
     company: string;
     targetRole: string;

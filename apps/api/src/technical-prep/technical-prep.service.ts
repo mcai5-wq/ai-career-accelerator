@@ -12,12 +12,9 @@ import {
   slugify,
 } from './practice-problem-catalog';
 
-// How many catalog problems a new session gets assigned — the top N by
-// relevance score once weighted against the topic breakdown (see
-// selectProblemsForBreakdown), not just insertion order.
 const PROBLEMS_PER_SESSION = 8;
-// Broader categories the AI may include even though they don't map to any
-// catalog problem — still useful in the displayed breakdown.
+// Broader categories that don't map to a catalog problem but are still
+// worth showing in the breakdown.
 const NON_CATALOG_TOPICS = ['System Design', 'Behavioral'];
 
 interface TopicBreakdownEntry {
@@ -26,12 +23,9 @@ interface TopicBreakdownEntry {
   rationale: string;
 }
 
-// Turns a topic display string into a dash-form usable for substring
-// matching against catalog tags — "Dynamic Programming" ->
-// "dynamic-programming", "Arrays & Strings" -> "arrays-strings" (which
-// contains both the "arrays" and "strings" tags). Works uniformly whether
-// the topic came fresh from the AI (via TOPIC_TAG_DISPLAY_NAMES), from a
-// company's cached breakdown, or from DEFAULT_TOPIC_BREAKDOWN.
+// "Dynamic Programming" -> "dynamic-programming", "Arrays & Strings" ->
+// "arrays-strings" (contains both "arrays" and "strings" tags). Lets a
+// display-style topic name match against the catalog's plain tags.
 function normalizeTopic(topic: string): string {
   return topic
     .toLowerCase()
@@ -46,7 +40,6 @@ export class TechnicalPrepService {
     private readonly aiClient: AiClientService,
   ) {}
 
-  // Matches the frontend's `TechnicalPrepSession` type (types/technical-prep.ts).
   private readonly summarySelect = {
     id: true,
     companyNameRaw: true,
@@ -113,8 +106,6 @@ export class TechnicalPrepService {
   }
 
   async findOne(userId: string, id: string) {
-    // findFirst with { id, userId } (not findUnique on id alone) so a user
-    // can't fetch someone else's session by guessing its id.
     const session = await this.prisma.technicalPrepSession.findFirst({
       where: { id, userId },
       select: this.detailSelect,
@@ -133,9 +124,6 @@ export class TechnicalPrepService {
     problemId: string,
     dto: UpdateProblemProgressDto,
   ) {
-    // The nested `session: { userId }` filter enforces ownership — sessionId
-    // + problemId alone would let a user update progress that belongs to
-    // someone else's session, if they guessed both ids.
     const progress = await this.prisma.technicalPrepProblemProgress.findFirst({
       where: { sessionId, problemId, session: { userId } },
     });
@@ -153,9 +141,6 @@ export class TechnicalPrepService {
     });
   }
 
-  // Companies are created ad hoc from whatever the user types — there's no
-  // curated catalog to match against yet, so every new name becomes a
-  // user-submitted Company row.
   private async findOrCreateCompany(nameRaw: string) {
     const name = nameRaw.trim();
     const slug = slugify(name);
@@ -168,14 +153,10 @@ export class TechnicalPrepService {
     });
   }
 
-  // Asks the ai-service to weight topics for this specific company + role
-  // combination every time, rather than reusing a company-wide cache —
-  // different roles at the same company can emphasize different topics,
-  // and Groq is fast/free enough that there's no real cost to asking fresh.
-  // Falls back to this company's last-known-good breakdown, and only to
-  // the static default if neither is available (no AI ever succeeded for
-  // this company). A fresh AI success is cached onto Company as that
-  // fallback for next time.
+  // Asks for a fresh breakdown every time rather than only reusing a
+  // per-company cache, since role changes what should matter even at the
+  // same company. Falls back to the last one that worked for this company,
+  // then to the static default if nothing's ever worked.
   private async generateTopicBreakdown(
     company: {
       id: string;
@@ -191,10 +172,6 @@ export class TechnicalPrepService {
     });
 
     if (generated && generated.length > 0) {
-      // .trim() guards against stray whitespace the model occasionally
-      // echoes back from the comma-separated available-topics list (e.g.
-      // " Behavioral") — otherwise it wouldn't match TOPIC_TAG_DISPLAY_NAMES
-      // and would render with a visible leading space.
       const breakdown: TopicBreakdownEntry[] = generated.map((entry) => {
         const topic = entry.topic.trim();
         return {
@@ -222,11 +199,9 @@ export class TechnicalPrepService {
     return DEFAULT_TOPIC_BREAKDOWN;
   }
 
-  // Scores every catalog problem by summing the weights of whichever
-  // breakdown topics it matches (via tag substring match — see
-  // normalizeTopic), then takes the top N. A company whose breakdown
-  // emphasizes graphs and dynamic programming gets a session weighted
-  // toward those, not just "the first 8 problems in the catalog."
+  // Scores each catalog problem by the weight of whichever breakdown
+  // topics it matches, then takes the top N — so a graph-heavy breakdown
+  // actually pulls in graph problems instead of just the first 8 in the catalog.
   private async selectProblemsForBreakdown(
     topicBreakdown: TopicBreakdownEntry[],
   ) {
@@ -249,17 +224,11 @@ export class TechnicalPrepService {
       return { problem, score };
     });
 
-    // Stable sort: Array.prototype.sort is guaranteed stable in modern JS
-    // engines, so problems with equal scores keep their original
-    // (creation-order) relative order rather than shuffling arbitrarily.
     scored.sort((a, b) => b.score - a.score);
 
     return scored.slice(0, PROBLEMS_PER_SESSION).map((entry) => entry.problem);
   }
 
-  // Lazily seeds the practice problem catalog on first use instead of
-  // requiring a separate `prisma db seed` step. `skipDuplicates` makes this
-  // safe if two requests race to seed at the same time.
   private async ensureCatalogSeeded() {
     const count = await this.prisma.practiceProblem.count();
     if (count > 0) return;

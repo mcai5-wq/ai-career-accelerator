@@ -16,9 +16,8 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     await this.client.quit();
   }
 
-  // Used as a token blocklist: a jti marked revoked stays that way only
-  // until the token's own expiry — after that it would be rejected as
-  // expired anyway, so there's no reason to remember it any longer.
+  // Token blocklist — the revoked flag only needs to outlive the token's
+  // own expiry, since it'd get rejected as expired after that anyway.
   async revoke(jti: string, ttlSeconds: number): Promise<void> {
     if (ttlSeconds <= 0) return;
     await this.client.set(`revoked:${jti}`, '1', 'EX', ttlSeconds);
@@ -29,9 +28,6 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     return value !== null;
   }
 
-  // Email login-code (2FA) storage — keyed by email, one live code at a
-  // time per account, with a bounded attempt counter to make the 6-digit
-  // space actually hard to brute-force within the TTL window.
   async setOtp(
     email: string,
     record: { code: string; attempts: number },

@@ -7,9 +7,8 @@ import {
 import { ConfigService } from '@nestjs/config';
 import type { Request } from 'express';
 
-// Protects server-to-server routes (called only by the Next.js backend,
-// never by a browser) with a shared secret instead of a user JWT — there's
-// no end user to hold a Bearer token at this point in the OAuth flow.
+// Protects server-to-server routes with a shared secret instead of a user
+// JWT — there's no logged-in user yet at this point in the OAuth flow.
 @Injectable()
 export class InternalApiKeyGuard implements CanActivate {
   constructor(private readonly configService: ConfigService) {}

@@ -11,9 +11,7 @@ class GenerateQuestionsRequest(BaseModel):
     company: str
     difficulty: str  # "JUNIOR" | "MID" | "SENIOR"
     count: int = Field(gt=0, le=10)
-    # Bank questions for this difficulty, passed in as few-shot examples so
-    # generated questions match their style/quality/scope instead of
-    # drifting into generic filler.
+    # Style examples so generated questions match the bank's quality/scope.
     exemplars: list[QuestionExemplar]
 
 

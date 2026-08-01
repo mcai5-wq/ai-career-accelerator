@@ -8,8 +8,6 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // proxy.ts already redirects unauthenticated requests away from
-  // /dashboard; this is the real (non-optimistic) check for this subtree.
   const session = await auth();
   if (!session) redirect("/login");
 

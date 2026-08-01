@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 
-// Next.js 16 renamed `middleware.ts` to `proxy.ts` (same runtime behavior).
-// This only performs an *optimistic* check against the session cookie/JWT —
-// it must not be the only authorization boundary. Real checks happen in the
-// (dashboard) layout and in each request to the NestJS API.
+// Just an optimistic redirect based on the session cookie — the real checks
+// happen in the (dashboard) layout and on every API request.
 const protectedPrefixes = ["/dashboard"];
 const authOnlyRoutes = ["/login", "/register", "/forgot-password"];
 

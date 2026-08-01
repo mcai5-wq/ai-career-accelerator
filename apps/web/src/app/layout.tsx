@@ -4,8 +4,7 @@ import { auth } from "@/lib/auth";
 import { Providers } from "@/components/providers";
 import "./globals.css";
 
-// Named `--font-sans` (not the default `--font-geist-sans`) because
-// globals.css's `@theme inline` block reads `--font-sans` directly.
+// globals.css reads --font-sans directly, hence the rename here.
 const geistSans = Geist({
   variable: "--font-sans",
   subsets: ["latin"],

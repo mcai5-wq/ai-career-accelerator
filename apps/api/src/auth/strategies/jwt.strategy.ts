@@ -18,15 +18,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  // Passport calls this once the token's signature/expiry check out. Its
-  // return value becomes `req.user` on any route behind JwtAuthGuard.
+  // Return value becomes `req.user` on routes behind JwtAuthGuard.
   async validate(payload: JwtPayload) {
     if (payload.type !== 'access') {
       throw new UnauthorizedException('Invalid token type.');
     }
 
-    // A signature/expiry check alone can't see logout — a revoked-but-not-
-    // yet-expired token would otherwise keep working for its full lifetime.
+    // Catches logout — a valid signature alone wouldn't know a token was revoked.
     if (await this.redisService.isRevoked(payload.jti)) {
       throw new UnauthorizedException('Token has been revoked.');
     }

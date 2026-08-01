@@ -5,11 +5,8 @@ interface QuestionTemplate {
   prompt: string;
 }
 
-// Static, curated per difficulty for now — no AI service is wired up yet
-// (apps/ai-service is still scaffolding), so sessions get a fixed set of
-// well-known questions instead of generated ones. Swapping this for a real
-// generation call later doesn't change the session/question/answer shape
-// callers rely on.
+// Curated fallback set, used to fill out a session and as style examples
+// for generated questions (see interviews.service.ts).
 const QUESTION_BANK: Record<InterviewDifficulty, QuestionTemplate[]> = {
   JUNIOR: [
     {

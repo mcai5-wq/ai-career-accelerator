@@ -13,27 +13,20 @@ export class ApiError extends Error {
 }
 
 interface ApiFetchOptions extends Omit<RequestInit, "body"> {
-  /** NextAuth accessToken (the NestJS-issued JWT), forwarded as a Bearer token. */
   token?: string;
   body?: unknown;
 }
 
-// A backend hang (e.g. a stalled SMTP call — see mail.service.ts) would
-// otherwise leave callers' `isPending` state stuck forever with no error,
-// which reads to the user as a dead "Loading…" button. Every request gets
-// a hard ceiling unless the caller passes its own `signal`.
+// Without this, a backend hang would leave callers' isPending state stuck
+// forever with no error — reads to the user as a dead "Loading…" button.
 const DEFAULT_TIMEOUT_MS = 20_000;
 
-// Isomorphic fetch wrapper for the NestJS API. Deliberately has no knowledge
-// of NextAuth/sessions — callers resolve the token (via `auth()` on the
-// server, or `useSession()` on the client) and pass it in explicitly.
 async function apiFetch<T>(
   path: string,
   { token, body, headers, ...init }: ApiFetchOptions = {}
 ): Promise<T> {
-  // FormData (file uploads) must NOT be JSON-stringified, and must NOT get
-  // an explicit Content-Type — the browser sets its own, with the
-  // multipart boundary the server needs to parse it.
+  // FormData must not be JSON-stringified or given an explicit Content-Type —
+  // the browser sets its own, with the multipart boundary the server needs.
   const isFormData = body instanceof FormData;
 
   let res: Response;

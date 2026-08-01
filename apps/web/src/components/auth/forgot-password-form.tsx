@@ -26,9 +26,6 @@ export function ForgotPasswordForm() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Step 1: always "succeeds" from the frontend's point of view — the API
-  // deliberately never reveals whether the email exists or has a password,
-  // so this doesn't (and can't) tell the user which case they're in.
   async function handleEmailSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
@@ -46,8 +43,6 @@ export function ForgotPasswordForm() {
     }
   }
 
-  // Step 2: exchanges the emailed code for a short-lived resetToken — the
-  // code itself is never sent again in step 3.
   async function handleCodeSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
@@ -69,7 +64,6 @@ export function ForgotPasswordForm() {
     }
   }
 
-  // Step 3: the resetToken (not the password/code) is what authorizes this.
   async function handlePasswordSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);

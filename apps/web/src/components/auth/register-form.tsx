@@ -29,9 +29,6 @@ export function RegisterForm() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Step 1: a plain API call (not signIn) — creates the account and has
-  // the backend email a code. A password only proves the user chose one;
-  // this is what proves they actually control the email address.
   async function handleDetailsSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
@@ -51,8 +48,6 @@ export function RegisterForm() {
     }
   }
 
-  // Step 2: the exact same verification signIn() uses for logging in —
-  // re-checks the password and the emailed code together.
   async function handleCodeSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);

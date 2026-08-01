@@ -6,9 +6,8 @@ import {
   MaxLength,
 } from 'class-validator';
 
-// Sent only by the Next.js server (never a browser) once it has already
-// verified the user's identity with the OAuth provider — this endpoint
-// trusts the caller (see InternalApiKeyGuard), not a password.
+// Sent by the Next.js server after it's already verified the user with
+// Google — see InternalApiKeyGuard for how this route trusts the caller.
 export class OAuthExchangeDto {
   @IsEmail()
   email: string;

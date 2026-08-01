@@ -1,7 +1,4 @@
-// Frontend-facing subset of the NestJS `Resume`/`ResumeAnalysis`/
-// `JobDescription` models (see apps/api/prisma/schema.prisma). Once the API
-// contracts stabilize, this should move to packages/shared-types and be
-// imported from both apps.
+// Mirrors apps/api/src/resumes.
 //   GET  /resumes
 //   POST /resumes/upload                    multipart: title, file
 //   GET  /resumes/:id
