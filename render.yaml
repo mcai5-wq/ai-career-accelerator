@@ -59,7 +59,7 @@ services:
     name: ai-service
     runtime: docker
     dockerfilePath: apps/ai-service/Dockerfile
-    dockerContext: .
+    dockerContext: apps/ai-service
     plan: free
     envVars:
       - key: AI_API_KEY
